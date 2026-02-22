@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,700&family=Source+Sans+3:wght@300;400;500;600&display=swap');
@@ -238,6 +239,8 @@ const CheckIcon = () => (
 );
 
 export default function Login() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
@@ -258,12 +261,21 @@ export default function Login() {
       const res = await fetch("http://0.0.0.0:8000/api/login/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          username: formData.email,
+          password: formData.password
+        }),
       });
+
       const data = await res.json();
+
       if (res.ok) {
+        const token = data.token || data.access || data.key;
+        localStorage.setItem("userToken", token);
         setSuccess(true);
-        setTimeout(() => { window.location.href = "/dashboard"; }, 2000);
+
+        setTimeout(() => { navigate("/home"); }, 2000);
+
       } else {
         setError(data?.detail || data?.message || "Invalid email or password.");
       }
