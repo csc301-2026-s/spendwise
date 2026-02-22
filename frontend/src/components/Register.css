@@ -1,0 +1,60 @@
+body {
+  background-color: #0f0f0f;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.register-wrapper {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.register-card {
+  background: #1a1a1a;
+  padding: 40px;
+  border-radius: 12px;
+  width: 350px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.register-card h2 {
+  color: white;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.register-card input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background-color: #111;
+  color: white;
+  font-size: 14px;
+  transition: 0.2s ease;
+}
+
+.register-card input:focus {
+  outline: none;
+  border: 1px solid #555;
+  background-color: #181818;
+}
+
+.register-card button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #2c2c2c, #3a3a3a);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.register-card button:hover {
+  background: linear-gradient(135deg, #3a3a3a, #4a4a4a);
+  transform: translateY(-1px);
+}
