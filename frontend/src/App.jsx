@@ -1,13 +1,14 @@
-import Register from "./components/Register"
-import "./App.css"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import Registration from "./components/Registration"
+import Login from "./components/Login"
 
-function App() {
+export default function App() {
   return (
-    <div className="app-container">
-      <h1>User Registration</h1>
-      <Register />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Registration />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
-
-export default App
