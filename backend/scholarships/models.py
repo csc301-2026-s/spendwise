@@ -16,13 +16,13 @@ class Scholarship(models.Model):
 
     # CORE INFO
     # default is null = False
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=500)
     description = models.TextField()
-    offered_by = models.CharField(max_length=200, null=True)
-    url = models.URLField(null=True, blank=True)
+    offered_by = models.CharField(max_length=500, null=True)
+    url = models.URLField(max_length=1000, null=True, blank=True)
 
     # AWARD TYPE
-    award_type = models.CharField(max_length=20, choices=AwardType.choices, null=True, blank=True)
+    award_type = models.CharField(max_length=50, choices=AwardType.choices, null=True, blank=True)
 
     # CITIZENSHIP
     open_to_domestic = models.BooleanField(default=False)
@@ -36,14 +36,15 @@ class Scholarship(models.Model):
     nature_leadership = models.BooleanField(default=False)
     nature_indigenous = models.BooleanField(default=False)
     nature_black_students = models.BooleanField(default=False)
+    nature_extracurriculars = models.BooleanField(default=False)
     nature_other = models.BooleanField(default=False)
 
     # APPLICATION
     application_required = models.BooleanField(default=False)
-    application_url = models.CharField(max_length=300, null=True)
+    application_url = models.CharField(max_length=1000, null=True)
 
     # AMOUNT
-    amount_text = models.CharField(max_length=200, null=True)
+    amount_text = models.CharField(max_length=500, null=True)
     amount_min = models.IntegerField(null=True, blank=True)
     amount_max = models.IntegerField(null=True, blank=True)
 
