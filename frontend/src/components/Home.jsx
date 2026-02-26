@@ -761,8 +761,8 @@ export default function Dashboard() {
               />
             </div>
 
-            // TODO: Replace static insight message with AI-generated spending insight
-            // once analytics endpoint is available.
+             {/* TODO: Replace static insight message with AI-generated spending insight */}
+            {/* once analytics endpoint is available. */}
             <div className="insightCardSpacing">
               <InsightCard
                 title="Smart Insight"
