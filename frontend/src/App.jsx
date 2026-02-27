@@ -3,6 +3,7 @@ import Registration from "./components/Registration"
 import Login from "./components/Login"
 import Home from "./components/Home"
 import Scholarships from "./components/Scholarships"
+import Transactions from "./components/Transactions"
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem("userToken");
@@ -25,6 +26,7 @@ export default function App() {
 
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/scholarships" element={<ProtectedRoute><Scholarships /></ProtectedRoute>} />
+        <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
