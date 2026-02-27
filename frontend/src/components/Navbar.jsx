@@ -142,10 +142,9 @@ const SettingsIcon = () => (
 const TABS = [
   { label: "Dashboard", path: "/home" },
   { label: "Scholarships", path: "/scholarships" },
-  { label: "Spending", path: "/spending" },
+  { label: "Spending", path: "/transactions" },
   { label: "Bills", path: "/bills" },
   { label: "Student Codes", path: "/student-codes" },
-  { label: "Transactions", path: "/Transactions" },
 ];
 
 export default function Navbar() {
