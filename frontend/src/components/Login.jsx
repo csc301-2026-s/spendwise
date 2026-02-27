@@ -271,7 +271,7 @@ export default function Login() {
 
       if (res.ok) {
         const token = data.token || data.access || data.key;
-        localStorage.setItem("userToken", token);
+        sessionStorage.setItem("userToken", token);
         setSuccess(true);
 
         setTimeout(() => { navigate("/home"); }, 2000);
