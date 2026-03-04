@@ -11,7 +11,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: spendwise/backend
+        working-directory: backend
 
     services:
       postgres:
