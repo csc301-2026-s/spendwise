@@ -8,6 +8,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+
     defaults:
       run:
         working-directory: spendwise/backend
@@ -44,16 +45,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run migrations
-        run: |
-          cd backend
-          python manage.py migrate
+        run: python manage.py migrate
 
       - name: Run tests
-        run: |
-          cd backend
-          python manage.py test
+        run: python manage.py test
