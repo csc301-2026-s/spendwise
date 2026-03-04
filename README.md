@@ -207,13 +207,14 @@ Build and start services:
 Run in background:
 
 ```bash
-docker compose exec backend python manage.py ingest_awardexplorer
+
+docker compose up -d --build
 ```
 
 Run scholarship explorer migration:
 
 ```bash
-
+docker compose exec backend python manage.py ingest_awardexplorer
 
 ```
 
