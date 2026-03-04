@@ -42,7 +42,7 @@ SpendWise empowers students to discover funding, reduce living costs, and manage
 
 ## How to Use the Application
 
-After running the application locally, open:
+After running the application locally (see Development Environment Setup instructions below),  open:
 
 http://localhost:5174
 
