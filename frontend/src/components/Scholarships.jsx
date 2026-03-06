@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
-
-const API = "http://localhost:8000/api";
+import { API_BASE_URL, fetchProfile, profileToScholarshipProfile, saveProfile } from "../utils/session";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+3:wght@300;400;500;600&display=swap');
@@ -702,6 +701,7 @@ function ProfileModal({ profile, onSave, onClose }) {
 // ── Main Component ──
 export default function Scholarships() {
   const [profile, setProfile]         = useState(loadProfile);
+  const [profileData, setProfileData] = useState(null);
   const [showModal, setShowModal]      = useState(false);
   const [scholarships, setScholarships] = useState([]);
   const [matchResults, setMatchResults] = useState(null);
@@ -728,7 +728,7 @@ export default function Scholarships() {
       if (filterCitizenship) params.set("citizenship", filterCitizenship);
       if (filterAwardType)   params.set("award_type", filterAwardType);
 
-      const res = await fetch(`${API}/scholarships/?${params}`);
+      const res = await fetch(`${API_BASE_URL}/scholarships/?${params}`);
       const data = await res.json();
       setScholarships(data.results || []);
       setTotal(data.count || 0);
@@ -741,7 +741,7 @@ export default function Scholarships() {
   const fetchMatch = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/scholarships/match/`, {
+      const res = await fetch(`${API_BASE_URL}/scholarships/match/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profile),
@@ -758,14 +758,41 @@ export default function Scholarships() {
     else { fetchScholarships(); }
   }, [onlyMatched, fetchScholarships, fetchMatch]);
 
+  useEffect(() => {
+    let isMounted = true;
+    fetchProfile()
+      .then((data) => {
+        if (!isMounted) return;
+        setProfileData(data);
+        setProfile(profileToScholarshipProfile(data));
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // reset page on filter change
   useEffect(() => { setPage(1); }, [q, sortBy, filterCitizenship, filterAwardType, onlyMatched]);
 
-  const handleSaveProfile = (newProfile) => {
-    setProfile(newProfile);
-    localStorage.setItem("userProfile", JSON.stringify(newProfile));
-    setShowModal(false);
-    if (onlyMatched) fetchMatch();
+  const handleSaveProfile = async (newProfile) => {
+    const payload = {
+      ...(profileData || {}),
+      citizenship_status: newProfile.citizenship,
+      campus: newProfile.campus,
+      degree_type: newProfile.degree_type,
+    };
+
+    try {
+      const updated = await saveProfile(payload);
+      const scholarshipProfile = profileToScholarshipProfile(updated);
+      setProfileData(updated);
+      setProfile(scholarshipProfile);
+      setShowModal(false);
+      if (onlyMatched) fetchMatch();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const displayList = onlyMatched
