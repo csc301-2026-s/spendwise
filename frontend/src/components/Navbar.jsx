@@ -145,6 +145,7 @@ const TABS = [
   { label: "Transactions", path: "/transactions" },
   { label: "Bills", path: "/bills" },
   { label: "Student Codes", path: "/student-codes" },
+  { label: "Investments", path: "/investing" },
 ];
 
 export default function Navbar() {
@@ -155,7 +156,6 @@ export default function Navbar() {
     <>
       <style>{styles}</style>
       <nav className="sw-nav">
-        {/* Logo */}
         <div className="sw-nav-logo" onClick={() => navigate("/home")} style={{ cursor: "pointer" }}>
           <div className="sw-nav-logo-box">
             <DollarIcon />
@@ -164,7 +164,6 @@ export default function Navbar() {
           <span className="sw-nav-badge">UofT</span>
         </div>
 
-        {/* Tabs */}
         <div className="sw-nav-tabs">
           {TABS.map((tab) => (
             <button
@@ -177,7 +176,6 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Right icons */}
         <div className="sw-nav-right">
           <div className="sw-nav-icon-btn"><PersonIcon /></div>
           <div className="sw-nav-icon-btn"><SettingsIcon /></div>

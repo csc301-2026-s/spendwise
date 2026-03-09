@@ -762,7 +762,7 @@ export default function Dashboard() {
                 {/* NEW INVESTING TILE */}
               <QuickTile
                 icon="💰"
-                title="Investing 101"
+                title="Investments"
                 subtitle="Practice portfolio"
                 toneClass="tInvest"
                 onClick={() => navigate("/investing")}
