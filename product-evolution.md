@@ -18,7 +18,7 @@
     but also not being fully optimal in terms our financial expenditures and potential revenue generation. Furthermore, we also
     reached out to fellow students and made them users and took their feedback.
 
-## What You Did?
+## Q2 What You Did?
 
 - High-level description of what was implemented
 
@@ -39,7 +39,7 @@
   tied together effectively like when a user had been created sometimes authentication was not fully working. But we
   were able to debug and resolve the issue after a few team meetings.
 
-## Before vs. After
+## Q3 Before vs. After
 
 - How did you improve the system?
 
@@ -54,7 +54,7 @@
   recurring expenses and potential savings. The addition of goal setting and investment guidance also improves workflow
   clarity by guiding users from identifying savings to planning how to allocate them toward financial goals.
 
-## Reflection
+## Q4 Reflection
 
 - What worked well?
 
