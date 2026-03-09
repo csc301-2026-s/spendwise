@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Navbar from "./Navbar";
 
 export default function Transactions() {
@@ -28,6 +28,7 @@ export default function Transactions() {
 
   const [accountId, setAccountId] = useState("");
   const [accounts, setAccounts] = useState([]);
+  const [accountLabelById, setAccountLabelById] = useState({});
 
   // -----------------------------
   // Fetch Transactions
@@ -76,7 +77,7 @@ export default function Transactions() {
 
       const accountObjects = uniqueAccounts.map(id => ({
         id: id,
-        name: `Account ${id}`
+        name: formatAccountLabel(id)
       }));
 
       setAccounts(accountObjects);
@@ -206,6 +207,11 @@ export default function Transactions() {
     fetchAllData();
   }, [month, year, accountId]);
 
+  useEffect(() => {
+    loadAccountLabels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // -----------------------------
   // Helpers
   // -----------------------------
@@ -270,6 +276,138 @@ export default function Transactions() {
     return res;
   };
 
+  const shortId = (id) => {
+    const s = String(id || "");
+    if (!s) return "Account";
+    if (s.length <= 12) return `Account ${s}`;
+    return `Account ${s.slice(0, 4)}…${s.slice(-4)}`;
+  };
+
+  const formatAccountLabel = (account_id) => {
+    const label = accountLabelById?.[account_id];
+    return label || shortId(account_id);
+  };
+
+  const amountNumber = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const bucketCategory = (raw) => {
+    const c = String(raw || "").toLowerCase();
+    if (!c) return "Other";
+    if (c.includes("food") || c.includes("restaurant") || c.includes("grocer")) return "Food";
+    if (c.includes("transport") || c.includes("transit") || c.includes("travel")) return "Transport";
+    if (c.includes("shop") || c.includes("store") || c.includes("retail") || c.includes("amazon"))
+      return "Shopping";
+    return "Other";
+  };
+
+  const visibleTransactions = useMemo(() => {
+    let list = Array.isArray(transactions) ? transactions : [];
+
+    if (category !== "All") {
+      list = list.filter((t) => bucketCategory(t.category) === category);
+    }
+
+    if (type !== "All") {
+      list = list.filter((t) => {
+        const amt = amountNumber(t.amount);
+        const isIncome = amt >= 0;
+        return type === "Income" ? isIncome : !isIncome;
+      });
+    }
+
+    const withDate = (t) => new Date(t.date);
+    if (sortBy === "Newest") list = [...list].sort((a, b) => withDate(b) - withDate(a));
+    if (sortBy === "Oldest") list = [...list].sort((a, b) => withDate(a) - withDate(b));
+    if (sortBy === "Highest")
+      list = [...list].sort((a, b) => Math.abs(amountNumber(b.amount)) - Math.abs(amountNumber(a.amount)));
+    if (sortBy === "Lowest")
+      list = [...list].sort((a, b) => Math.abs(amountNumber(a.amount)) - Math.abs(amountNumber(b.amount)));
+
+    return list;
+  }, [transactions, category, type, sortBy]);
+
+  const loadAccountLabels = async () => {
+    try {
+      if (!getAccessToken()) return;
+
+      const itemsRes = await fetchWithAuth(`${API_BASE}/plaid/items/`);
+      if (!itemsRes.ok) return;
+
+      const itemsPayload = await itemsRes.json();
+      const items = itemsPayload?.items || [];
+      if (!Array.isArray(items) || items.length === 0) return;
+
+      const accountMaps = await Promise.all(
+        items.map(async (it) => {
+          const itemId = it?.item_id;
+          if (!itemId) return {};
+
+          const accRes = await fetchWithAuth(`${API_BASE}/plaid/items/${itemId}/accounts/`);
+          if (!accRes.ok) return {};
+          const accPayload = await accRes.json();
+          const accounts = accPayload?.accounts || [];
+          if (!Array.isArray(accounts)) return {};
+
+          const map = {};
+          for (const acc of accounts) {
+            const id = acc?.account_id;
+            if (!id) continue;
+            const name = acc?.official_name || acc?.name || "Account";
+            const mask = acc?.mask ? `••••${acc.mask}` : "";
+            const type = acc?.subtype || acc?.type || "";
+            map[id] = [name, mask || type ? `${mask}${mask && type ? " · " : ""}${type}` : ""]
+              .filter(Boolean)
+              .join(" ");
+          }
+          return map;
+        })
+      );
+
+      const merged = {};
+      for (const m of accountMaps) Object.assign(merged, m);
+      if (Object.keys(merged).length) setAccountLabelById(merged);
+    } catch (e) {
+      // silent; fall back to shortened ids
+    }
+  };
+
+  const CSS = `
+    .tx-page{background:#f6f8fb;min-height:100vh}
+    .tx-body{max-width:1100px;margin:0 auto;padding:28px 18px 60px}
+    .tx-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .tx-title{margin:0;font-size:34px;letter-spacing:-0.02em;color:#0f172a}
+    .tx-subtitle{margin:6px 0 0;color:#475569}
+    .tx-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid #e2e8f0;background:white;color:#0f172a;font-size:12px}
+    .tx-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin:16px 0}
+    .tx-card{background:white;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 10px 26px rgba(15,23,42,.06)}
+    .tx-card-h{padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between}
+    .tx-card-h h3{margin:0;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#334155}
+    .tx-card-b{padding:16px}
+    .tx-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .tx-stat{padding:14px;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f8fafc);border:1px solid #eef2f7}
+    .tx-stat p{margin:0;color:#64748b;font-size:12px}
+    .tx-stat h2{margin:6px 0 0;font-size:22px;color:#0f172a}
+    .tx-tips{display:flex;flex-direction:column;gap:10px}
+    .tx-tip{padding:12px 12px;border:1px dashed #dbeafe;background:#eff6ff;border-radius:12px}
+    .tx-tip strong{color:#0f172a}
+    .tx-controls{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:14px}
+    .tx-input,.tx-select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #e2e8f0;background:white;color:#0f172a}
+    .tx-table-wrap{overflow:auto}
+    .tx-table{width:100%;border-collapse:separate;border-spacing:0}
+    .tx-table th{position:sticky;top:0;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:.08em;padding:12px;text-align:left}
+    .tx-table td{padding:12px;border-bottom:1px solid #f1f5f9;color:#0f172a}
+    .tx-table tr:hover td{background:#fbfdff}
+    .tx-amount{font-variant-numeric:tabular-nums;font-weight:700;text-align:right}
+    .tx-amount.in{color:#0f766e}
+    .tx-amount.out{color:#b91c1c}
+    .tx-empty{padding:18px;color:#475569}
+    .tx-error{margin:12px 0 0;padding:12px 14px;border-radius:12px;border:1px solid #fecaca;background:#fef2f2;color:#7f1d1d}
+    @media (max-width:980px){.tx-grid{grid-template-columns:1fr}.tx-controls{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  `;
+
   // -----------------------------
   // UI
   // -----------------------------
@@ -281,173 +419,155 @@ export default function Transactions() {
       <main className="tx-body">
 
         <header className="tx-header">
-          <h1 className="tx-title">Transactions</h1>
-          <p className="tx-subtitle">
-            Track every payment, transfer, and deposit in one place.
-          </p>
+          <div>
+            <h1 className="tx-title">Transactions</h1>
+            <p className="tx-subtitle">Track every payment, transfer, and deposit in one place.</p>
+          </div>
+          <div className="tx-chip">
+            <span>Month</span>
+            <strong>{month}/{year}</strong>
+          </div>
         </header>
 
-        {/* SUMMARY */}
-        <section className="tx-summary">
+        <style>{CSS}</style>
 
-          <div className="tx-summary-item">
-            <p>Total Monthly Expenses</p>
-            <h3>${formatMoney(totalExpensesAmount)}</h3>
-          </div>
+        {error && <div className="tx-error">{error}</div>}
 
-          <div className="tx-summary-item">
-            <p>Potential Saving</p>
-            <h3>${formatMoney(monthlySavingAmount)}</h3>
-          </div>
-
-        </section>
-
-        {/* MONTHLY TIPS */}
-        <section className="tx-spending">
-
-          <div className="left-box">
-
-            <p><strong>Monthly Tips</strong></p>
-
-            {monthlySavingDesc && monthlySavingDesc.map((t) => (
-
-              <div key={t.name}>
-
-                <p>
-                  You spent ${t.total} on {t.name}.
-                </p>
-
-                <p>
-                  You could save about ${t.per_saving} this month by reducing this expense.
-                </p>
-
+        <section className="tx-grid">
+          <div className="tx-card">
+            <div className="tx-card-h">
+              <h3>Overview</h3>
+              <span className="tx-chip">{visibleTransactions.length} shown</span>
+            </div>
+            <div className="tx-card-b">
+              <div className="tx-stats">
+                <div className="tx-stat">
+                  <p>Total Monthly Expenses</p>
+                  <h2>${formatMoney(totalExpensesAmount)}</h2>
+                </div>
+                <div className="tx-stat">
+                  <p>Potential Saving</p>
+                  <h2>${formatMoney(monthlySavingAmount)}</h2>
+                </div>
               </div>
 
-            ))}
+              <div className="tx-controls" style={{ marginTop: 14 }}>
+                <input
+                  className="tx-input"
+                  type="number"
+                  placeholder="Month"
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value)}
+                  min="1"
+                  max="12"
+                />
 
+                <input
+                  className="tx-input"
+                  type="number"
+                  placeholder="Year"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  min="2000"
+                  max="2100"
+                />
+
+                <select className="tx-select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+                  <option value="">All Accounts</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select className="tx-select" value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+
+                <select className="tx-select" value={type} onChange={(e) => setType(e.target.value)}>
+                  <option value="All">All Types</option>
+                  <option value="Income">Income</option>
+                  <option value="Expense">Expense</option>
+                </select>
+
+                <select className="tx-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                  <option value="Newest">Newest first</option>
+                  <option value="Oldest">Oldest first</option>
+                  <option value="Highest">Highest amount</option>
+                  <option value="Lowest">Lowest amount</option>
+                </select>
+              </div>
+            </div>
           </div>
 
+          <div className="tx-card">
+            <div className="tx-card-h">
+              <h3>Monthly Tips</h3>
+              <span className="tx-chip">Based on merchants</span>
+            </div>
+            <div className="tx-card-b">
+              <div className="tx-tips">
+                {monthlySavingDesc?.length ? (
+                  monthlySavingDesc.map((t) => (
+                    <div className="tx-tip" key={t.name}>
+                      <div>
+                        <strong>{t.name}</strong> — spent ${formatMoney(t.total)}
+                      </div>
+                      <div>You could save about ${formatMoney(t.per_saving)} by reducing this expense.</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="tx-empty">No tips available for this month yet.</div>
+                )}
+              </div>
+            </div>
+          </div>
         </section>
 
-        {/* FILTERS */}
-        <section className="tx-controls">
-
-          <input
-            className="tx-input"
-            type="number"
-            placeholder="Month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-          />
-
-          <input
-            className="tx-input"
-            type="number"
-            placeholder="Year"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-          />
-
-          {/* ACCOUNT FILTER */}
-          <select
-            className="tx-select"
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-          >
-
-            <option value="">All Accounts</option>
-
-            {accounts.map(a => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-
-          </select>
-
-          <select
-            className="tx-select"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-
-          <select
-            className="tx-select"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-          >
-            <option value="All">All Types</option>
-            <option value="Income">Income</option>
-            <option value="Expense">Expense</option>
-          </select>
-
-          <select
-            className="tx-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="Newest">Newest first</option>
-            <option value="Oldest">Oldest first</option>
-            <option value="Highest">Highest amount</option>
-            <option value="Lowest">Lowest amount</option>
-          </select>
-
-        </section>
-
-        {/* TABLE */}
         <section className="tx-card">
-
-          {error && (
-            <div className="tx-empty">{error}</div>
-          )}
-
-          {loading ? (
-            <div className="tx-empty">Loading transactions...</div>
-          ) : transactions.length === 0 ? (
-            <div className="tx-empty">No transactions found.</div>
-          ) : (
-
-            <table className="tx-table">
-
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Merchant</th>
-                  <th>Category</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-
-              <tbody>
-
-                {transactions.map((t) => (
-
-                  <tr key={`${t.date}-${t.merchant_name}-${t.amount}`}>
-
-                    <td>{formatDate(t.date)}</td>
-
-                    <td>{t.merchant_name}</td>
-
-                    <td>{t.category}</td>
-
-                    <td className={`tx-amount ${t.amount >= 0 ? "in" : "out"}`}>
-                      {t.amount >= 0 ? "+" : "-"}${formatMoney(Math.abs(t.amount))}
-                    </td>
-
+          <div className="tx-card-h">
+            <h3>Transactions</h3>
+            <span className="tx-chip">Sorted: {sortBy}</span>
+          </div>
+          <div className="tx-table-wrap">
+            {loading ? (
+              <div className="tx-empty">Loading transactions...</div>
+            ) : visibleTransactions.length === 0 ? (
+              <div className="tx-empty">No transactions found.</div>
+            ) : (
+              <table className="tx-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Merchant</th>
+                    <th>Category</th>
+                    <th style={{ textAlign: "right" }}>Amount</th>
                   </tr>
-
-                ))}
-
-              </tbody>
-
-            </table>
-
-          )}
-
+                </thead>
+                <tbody>
+                  {visibleTransactions.map((t) => {
+                    const amt = amountNumber(t.amount);
+                    const isIn = amt >= 0;
+                    return (
+                      <tr key={`${t.transaction_id || ""}-${t.date}-${t.account_id}-${t.amount}`}>
+                        <td>{formatDate(t.date)}</td>
+                        <td>{t.merchant_name || t.name || "—"}</td>
+                        <td>{bucketCategory(t.category)}</td>
+                        <td className={`tx-amount ${isIn ? "in" : "out"}`}>
+                          {isIn ? "+" : "-"}${formatMoney(Math.abs(amt))}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
         </section>
 
       </main>

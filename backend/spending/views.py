@@ -2,6 +2,8 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Count
+from django.db.models import Q
+from django.db.models.functions import Coalesce, Abs
 from datetime import datetime
 from decimal import Decimal
 from transactions.models import Transaction
@@ -10,6 +12,8 @@ from transactions.models import Transaction
 class SpendingViewset(viewsets.ViewSet):
 
     permission_classes = [permissions.IsAuthenticated]
+    RECURRING_MIN_COUNT = 5
+    RECURRING_MIN_TOTAL = Decimal("300")
 
     def get_month_transactions(self, request):
 
@@ -34,6 +38,30 @@ class SpendingViewset(viewsets.ViewSet):
 
         return qs
 
+    def get_recurring_spending(self, request):
+
+        qs = self.get_month_transactions(request).annotate(
+            merchant_display=Coalesce("merchant_name", "name")
+        )
+
+        # Only consider expenses (negative amounts) for recurring/high-impact spending.
+        qs = qs.filter(amount__lt=0)
+
+        recurring = (
+            qs.values("merchant_display")
+            .annotate(
+                # Use absolute value so refunds/credits don't hide "high impact" merchants.
+                total_abs=Sum(Abs("amount")),
+                count=Count("id")
+            )
+            .filter(
+                Q(count__gte=self.RECURRING_MIN_COUNT) | Q(total_abs__gte=self.RECURRING_MIN_TOTAL)
+            )
+            .order_by("-total_abs")
+        )
+
+        return recurring
+
     @action(detail=False, methods=["get"])
     def monthly_transactions(self, request):
 
@@ -41,6 +69,7 @@ class SpendingViewset(viewsets.ViewSet):
 
             data = qs.values(
                 "merchant_name",
+                "name",
                 "amount",
                 "date",
                 "category",
@@ -51,28 +80,30 @@ class SpendingViewset(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"])
     def monthly_spending(self, request):
+        # Only show "recurring" / high-impact merchants:
+        # - occurred >= 5 times in the month OR
+        # - total monthly spend >= $300
+        spending = self.get_recurring_spending(request)
 
-        qs = self.get_month_transactions(request)
-
-        spending = (
-            qs.values("merchant_name")
-            .annotate(
-                total=Sum("amount"),
-                count=Count("id")
-            )
-            .order_by("-total")
+        return Response(
+            [
+                {
+                    "merchant_name": row["merchant_display"],
+                    "total": row["total_abs"],
+                    "count": row["count"],
+                }
+                for row in spending
+            ]
         )
-
-        return Response(spending)
 
     @action(detail=False, methods=["get"])
     def category_spending(self, request):
 
-        qs = self.get_month_transactions(request)
+        qs = self.get_month_transactions(request).filter(amount__lt=0)
 
         categories = (
             qs.values("category")
-            .annotate(total=Sum("amount"))
+            .annotate(total=Sum(Abs("amount")))
             .order_by("-total")
         )
 
@@ -81,46 +112,41 @@ class SpendingViewset(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"])
     def recurring_transactions(self, request):
+        recurring = self.get_recurring_spending(request).order_by("-count")
 
-        qs = self.get_month_transactions(request)
-
-        recurring = (
-            qs.values("merchant_name")
-            .annotate(
-                total=Sum("amount"),
-                count=Count("id")
-            )
-            .filter(count__gte=3)
-            .order_by("-count")
+        return Response(
+            [
+                {
+                    "merchant_name": row["merchant_display"],
+                    "total": row["total_abs"],
+                    "count": row["count"],
+                }
+                for row in recurring
+            ]
         )
-
-        return Response(recurring)
 
     @action(detail=False, methods=["get"])
     def monthly_saving(self, request):
 
-        qs = self.get_month_transactions(request)
-
-        spending = (
-            qs.values("merchant_name")
-            .annotate(total=Sum("amount"))
-        )
+        # Generate tips only for recurring / high-impact merchants.
+        spending = self.get_recurring_spending(request)
 
         saving = []
 
         for s in spending:
 
-            name = (s["merchant_name"] or "").upper()
-            total = s["total"]
+            merchant = s["merchant_display"]
+            name = (merchant or "").upper()
+            total = s["total_abs"] or Decimal("0")
 
             # Food delivery
-            if "UBER" in name or "DOORDASH" in name:
+            if "UBER" in name or "DOORDASH" in name or "UNITED AIRLINES" in name:
 
                 possible = total - 200
 
                 if possible > 0:
                     saving.append({
-                        "name": s["merchant_name"],
+                        "name": merchant,
                         "total": total,
                         "per_saving": int(possible)
                     })
@@ -131,7 +157,7 @@ class SpendingViewset(viewsets.ViewSet):
                 possible = total * Decimal("0.40")
 
                 saving.append({
-                    "name": s["merchant_name"],
+                    "name": merchant,
                     "total": total,
                     "per_saving": int(possible)
                 })
@@ -143,7 +169,7 @@ class SpendingViewset(viewsets.ViewSet):
 
                 if possible > 0:
                     saving.append({
-                        "name": s["merchant_name"],
+                        "name": merchant,
                         "total": total,
                         "per_saving": int(possible)
                     })
@@ -166,9 +192,9 @@ class SpendingViewset(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def total_expenses_amount(self, request):
 
-        qs = self.get_month_transactions(request)
+        qs = self.get_month_transactions(request).filter(amount__lt=0)
 
-        aggregate_result = qs.aggregate(total_expenses=Sum("amount"))
+        aggregate_result = qs.aggregate(total_expenses=Sum(Abs("amount")))
         total_expenses = aggregate_result.get("total_expenses") or 0
 
         return Response({
