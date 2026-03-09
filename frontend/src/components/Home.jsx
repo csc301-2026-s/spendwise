@@ -403,7 +403,7 @@ const styles = `
   .tScholar { background: #FFF6E0; border-color: rgba(232,181,62,0.5); }
   .tBills { background: #EAF0FF; border-color: rgba(0,71,160,0.18); }
   .tCodes { background: #ECFDF5; border-color: rgba(24,165,116,0.18); }
-
+  .tInvest { background: #E6FFFC; border-color: rgba(24,165,116,0.25); }
   .tileTitle {
     font-weight: 900;
     color: var(--uoft-blue);
@@ -758,6 +758,14 @@ export default function Dashboard() {
                 subtitle="Apply a discount code"
                 toneClass="tCodes"
                 onClick={() => navigate("/student-codes")}
+              />
+                {/* NEW INVESTING TILE */}
+              <QuickTile
+                icon="💰"
+                title="Investing 101"
+                subtitle="Practice portfolio"
+                toneClass="tInvest"
+                onClick={() => navigate("/investing")}
               />
             </div>
 
