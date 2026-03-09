@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Count
 from datetime import datetime
+from decimal import Decimal
 from transactions.models import Transaction
 
 
@@ -42,7 +43,8 @@ class SpendingViewset(viewsets.ViewSet):
                 "merchant_name",
                 "amount",
                 "date",
-                "category"
+                "category",
+                "account_id" 
             )
 
             return Response(data)
@@ -126,7 +128,7 @@ class SpendingViewset(viewsets.ViewSet):
             # TTC transit
             elif "PRESTO" in name:
 
-                possible = total * 0.40
+                possible = total * Decimal("0.40")
 
                 saving.append({
                     "name": s["merchant_name"],
@@ -166,6 +168,9 @@ class SpendingViewset(viewsets.ViewSet):
 
         qs = self.get_month_transactions(request)
 
-        total = qs.aggregate(total_expenses=Sum("amount"))
+        aggregate_result = qs.aggregate(total_expenses=Sum("amount"))
+        total_expenses = aggregate_result.get("total_expenses") or 0
 
-        return Response(total)
+        return Response({
+            "total_expenses": total_expenses
+        })
