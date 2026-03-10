@@ -6,6 +6,7 @@ import Scholarships from "./components/Scholarships"
 import Onboarding from "./components/Onboarding"
 import { getToken, isOnboardingComplete } from "./utils/session"
 import Plaid from "./components/Plaid"
+import Transactions from "./components/Transactions"
 
 const ProtectedRoute = ({ children }) => {
   const token = getToken();
@@ -32,7 +33,7 @@ export default function App() {
         <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/scholarships" element={<ProtectedRoute><Scholarships /></ProtectedRoute>} />
-        <Route path="/transactions" element={<ProtectedRoute><Plaid /></ProtectedRoute>} />
+        <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

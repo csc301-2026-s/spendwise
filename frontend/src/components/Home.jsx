@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { usePlaidLink } from "react-plaid-link";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
-import { API_BASE_URL, fetchProfile } from "../utils/session";
+import { API_BASE_URL, authHeaders, fetchProfile } from "../utils/session";
 
-const MONTH_OPTIONS = ["This Month", "Last Month", "2 Months Ago"];
+const MONTH_OPTIONS = ["This Month", "Last Month", "3 Months", "Past Year"];
 
 const TRANSACTIONS = [
   {
@@ -320,6 +321,102 @@ const styles = `
     border-color: #B9C7E6;
   }
 
+  .bank-cta {
+    background: var(--uoft-blue);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 800;
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    box-shadow: 3px 3px 0px var(--uoft-accent);
+  }
+
+  .bank-cta:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .bank-status {
+    margin-bottom: 1rem;
+    border-radius: 12px;
+    border: 2px solid #cbe6dc;
+    background: #effaf5;
+    color: #155d41;
+    padding: 0.75rem 0.95rem;
+    font-weight: 600;
+  }
+
+  .bank-status.error {
+    border-color: #f2c7c3;
+    background: #fff4f3;
+    color: #8a2e25;
+  }
+
+  .bank-tabs {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin: 0 0 0.9rem;
+  }
+
+  .bank-tab {
+    max-width: 260px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 2px solid var(--border);
+    background: #fff;
+    color: var(--uoft-blue);
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+  }
+
+  .bank-tab:hover {
+    border-color: var(--uoft-mid);
+    color: var(--uoft-mid);
+  }
+
+  .bank-tab.active {
+    background: var(--uoft-blue);
+    border-color: var(--uoft-blue);
+    color: #fff;
+    box-shadow: 3px 3px 0px var(--uoft-accent);
+  }
+
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .mini-card {
+    background: #f7faff;
+    border: 2px solid rgba(208,219,232,0.75);
+    border-radius: 14px;
+    padding: 0.7rem 0.8rem;
+  }
+
+  .mini-title {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin: 0 0 0.2rem;
+  }
+
+  .mini-value {
+    color: var(--uoft-blue);
+    font-size: 1.05rem;
+    font-weight: 900;
+    margin: 0;
+  }
+
+  .mini-value.neg { color: var(--danger); }
+  .mini-value.pos { color: var(--success); }
+
   .db-grid {
     display: grid;
     grid-template-columns: 1fr 320px;
@@ -401,6 +498,21 @@ const styles = `
     font-weight: 900;
     font-size: 0.85rem;
     white-space: nowrap;
+  }
+
+  .hero-change.good {
+    background: rgba(24,165,116,0.2);
+    border-color: rgba(24,165,116,0.45);
+  }
+
+  .hero-change.bad {
+    background: rgba(192,57,43,0.2);
+    border-color: rgba(192,57,43,0.45);
+  }
+
+  .hero-change.neutral {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.35);
   }
 
   .hero-meta {
@@ -746,6 +858,7 @@ const styles = `
   @media (max-width: 980px) {
     .db-grid { grid-template-columns: 1fr; }
     .db-side { order: 2; }
+    .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
   @media (max-width: 720px) {
@@ -804,6 +917,73 @@ function getDaysUntil(dateStr) {
   return Math.round((target - today) / 86400000);
 }
 
+function fmtMoney(value) {
+  return Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function getPeriodLength(label) {
+  if (label === "3 Months") return 3;
+  if (label === "Past Year") return 12;
+  return 1;
+}
+
+function monthYearForLabel(label, windowShift = 0) {
+  const today = new Date();
+  const baseOffset = label === "Last Month" ? 1 : 0;
+  const totalMonths = getPeriodLength(label);
+  const entries = [];
+
+  for (let i = 0; i < totalMonths; i += 1) {
+    const date = new Date(today.getFullYear(), today.getMonth() - baseOffset - windowShift - i, 1);
+    entries.push({ month: date.getMonth() + 1, year: date.getFullYear() });
+  }
+
+  return entries;
+}
+
+function connectIconForTransaction(category) {
+  const normalized = String(category || "").toLowerCase();
+  if (normalized.includes("food") || normalized.includes("restaurant")) return "FD";
+  if (normalized.includes("transport") || normalized.includes("travel") || normalized.includes("transit")) return "TR";
+  if (normalized.includes("shop") || normalized.includes("retail")) return "SH";
+  if (normalized.includes("income") || normalized.includes("deposit")) return "IN";
+  return "TX";
+}
+
+function relativeDateLabel(dateText) {
+  if (!dateText) return "Unknown date";
+  const parsed = new Date(`${dateText}T00:00:00`);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const input = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  const diff = Math.round((today - input) / 86400000);
+
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function shortAccountLabel(label) {
+  const text = String(label || "");
+  if (text.length <= 15) return text;
+  return `${text.slice(0, 12)}...`;
+}
+
+function defaultSpendingSummaryForMonth(label) {
+  if (label === "Last Month") return { total: 1620.3, budget: 2200, deltaPct: -4 };
+  if (label === "3 Months") return { total: 2010.1, budget: 2200, deltaPct: 9 };
+  if (label === "Past Year") return { total: 1894.2, budget: 2200, deltaPct: -6 };
+  return { total: 1847.5, budget: 2200, deltaPct: -12 };
+}
+
 function normalizeScholarship(item) {
   const amount = Number.isFinite(Number(item.amount))
     ? Number(item.amount)
@@ -824,7 +1004,16 @@ function normalizeScholarship(item) {
 }
 
 function HeroSpendingCard({ monthLabel, total, budget, deltaPct }) {
-  const pctUsed = Math.min(100, Math.round((total / budget) * 100));
+  const safeBudget = budget || 1;
+  const pctUsed = Math.min(100, Math.round((total / safeBudget) * 100));
+  const absDelta = Math.abs(deltaPct || 0);
+  const trendClass = deltaPct > 0 ? "bad" : deltaPct < 0 ? "good" : "neutral";
+  const trendText =
+    deltaPct > 0
+      ? `Up ${absDelta}% vs last period`
+      : deltaPct < 0
+        ? `Down ${absDelta}% vs last period`
+        : "No change vs last period";
 
   return (
     <div className="card hero" style={{ ["--pct"]: `${pctUsed}%` }}>
@@ -834,13 +1023,11 @@ function HeroSpendingCard({ monthLabel, total, budget, deltaPct }) {
           <p className="hero-amount">{formatCurrencyWithCents(total)}</p>
         </div>
 
-        <div className="hero-change">
-          {deltaPct >= 0 ? `↗ +${deltaPct}%` : `↘ ${deltaPct}%`}
-        </div>
+        <div className={`hero-change ${trendClass}`}>{trendText}</div>
       </div>
 
       <div className="hero-meta">
-        <span>Budget: {formatCurrency(budget)}/mo</span>
+        <span>Budget: {formatCurrency(safeBudget)}/mo</span>
         <span>{pctUsed}% used</span>
       </div>
 
@@ -1000,6 +1187,71 @@ function ExpiringCodesCard({ items }) {
   );
 }
 
+function ConnectBankButton({ onLinked, onError }) {
+  const [linkToken, setLinkToken] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/plaid/link-token/", {
+      method: "POST",
+      headers: { ...authHeaders() },
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to initialize Plaid Link");
+        return response.json();
+      })
+      .then((data) => setLinkToken(data.link_token))
+      .catch((error) => onError(error.message));
+  }, [onError]);
+
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess: async (publicToken, metadata) => {
+      setBusy(true);
+
+      try {
+        const response = await fetch("/api/plaid/exchange-token/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+          },
+          body: JSON.stringify({
+            public_token: publicToken,
+            institution: metadata?.institution || {},
+          }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || "Failed to connect bank account");
+
+        const itemId = payload.item_id;
+        await Promise.all([
+          fetch(`/api/plaid/items/${itemId}/accounts/`, { headers: { ...authHeaders() } }),
+          fetch(`/api/plaid/items/${itemId}/transactions/?days=180&count=500`, { headers: { ...authHeaders() } }),
+        ]);
+
+        onLinked(payload);
+      } catch (error) {
+        onError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    },
+    onExit: (error) => {
+      if (error) {
+        onError(error.display_message || error.error_message || "Plaid connection cancelled");
+      }
+    },
+  });
+
+  return (
+    <button className="bank-cta" onClick={() => open()} disabled={!ready || busy}>
+      {busy ? "Connecting..." : "Connect Bank Account"}
+    </button>
+  );
+}
+
 function MonthDropdown({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
 
@@ -1041,8 +1293,27 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [month, setMonth] = useState("This Month");
+  const [selectedAccountId, setSelectedAccountId] = useState("");
   const [onlyImportant, setOnlyImportant] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [bankCount, setBankCount] = useState(0);
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusError, setStatusError] = useState(false);
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalSavings, setTotalSavings] = useState(0);
+  const [deltaPct, setDeltaPct] = useState(0);
+  const [monthlyDetail, setMonthlyDetail] = useState({
+    transactions: 0,
+    avgExpense: 0,
+    avgIncome: 0,
+    net: 0,
+    totalIncome: 0,
+    totalExpense: 0,
+    periodMonths: 1,
+  });
+  const [reloadKey, setReloadKey] = useState(0);
   const [profile, setProfile] = useState(null);
   const [trendingScholarships, setTrendingScholarships] = useState(FALLBACK_SCHOLARSHIPS);
   const [scholarshipsLoading, setScholarshipsLoading] = useState(true);
@@ -1094,16 +1365,238 @@ export default function Dashboard() {
     };
   }, []);
 
+  const fetchBankAccounts = async () => {
+    const response = await fetch("/api/plaid/bank-accounts/", { headers: { ...authHeaders() } });
+    if (!response.ok) return [];
+
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.accounts) ? payload.accounts : [];
+    const unique = [];
+    const seen = new Set();
+
+    for (const row of rows) {
+      const id = row?.account_id;
+      if (!id || seen.has(id)) continue;
+
+      seen.add(id);
+      const label =
+        row?.official_name ||
+        row?.name ||
+        `${row?.item__institution_name || "Bank"} ${row?.mask ? `...${row.mask}` : ""}`;
+
+      unique.push({ id, name: label });
+    }
+
+    const capped = unique.slice(0, 5);
+    setBankAccounts(capped);
+    return capped;
+  };
+
+  useEffect(() => {
+    const loadConnectedBanks = async () => {
+      try {
+        const itemsResponse = await fetch("/api/plaid/items/", { headers: { ...authHeaders() } });
+
+        if (!itemsResponse.ok) return;
+
+        const payload = await itemsResponse.json();
+        const items = payload?.items || [];
+        setBankCount(items.length);
+
+        if (items.length) {
+          await Promise.all(
+            items.map((item) =>
+              Promise.all([
+                fetch(`/api/plaid/items/${item.item_id}/accounts/`, { headers: { ...authHeaders() } }),
+                fetch(`/api/plaid/items/${item.item_id}/transactions/?days=180&count=500`, {
+                  headers: { ...authHeaders() },
+                }),
+              ])
+            )
+          );
+        }
+
+        await fetchBankAccounts();
+      } catch {
+        setStatusError(true);
+        setStatusMessage("Could not sync your connected bank data right now.");
+      }
+    };
+
+    loadConnectedBanks();
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (!selectedAccountId) return;
+    if (!bankAccounts.some((account) => account.id === selectedAccountId)) {
+      setSelectedAccountId("");
+    }
+  }, [bankAccounts, selectedAccountId]);
+
+  useEffect(() => {
+    const loadMonthData = async () => {
+      try {
+        const selectedPeriods = monthYearForLabel(month);
+        const previousPeriods = monthYearForLabel(month, getPeriodLength(month));
+        const accountQuery = selectedAccountId
+          ? `&account_id=${encodeURIComponent(selectedAccountId)}`
+          : "";
+
+        const currentResponses = await Promise.all(
+          selectedPeriods.map(async ({ month: currentMonth, year }) => {
+            const [transactionsResponse, expensesResponse, savingsResponse] = await Promise.all([
+              fetch(
+                `/api/spending/monthly_transactions/?month=${currentMonth}&year=${year}${accountQuery}`,
+                { headers: { ...authHeaders() } }
+              ),
+              fetch(
+                `/api/spending/total_expenses_amount/?month=${currentMonth}&year=${year}${accountQuery}`,
+                { headers: { ...authHeaders() } }
+              ),
+              fetch(
+                `/api/spending/monthly_saving_amount/?month=${currentMonth}&year=${year}${accountQuery}`,
+                { headers: { ...authHeaders() } }
+              ),
+            ]);
+
+            return { transactionsResponse, expensesResponse, savingsResponse };
+          })
+        );
+
+        const previousExpenseResponses = await Promise.all(
+          previousPeriods.map(({ month: previousMonth, year }) =>
+            fetch(
+              `/api/spending/total_expenses_amount/?month=${previousMonth}&year=${year}${accountQuery}`,
+              { headers: { ...authHeaders() } }
+            )
+          )
+        );
+
+        if (
+          currentResponses.some(
+            ({ transactionsResponse, expensesResponse, savingsResponse }) =>
+              !transactionsResponse.ok || !expensesResponse.ok || !savingsResponse.ok
+          ) ||
+          previousExpenseResponses.some((response) => !response.ok)
+        ) {
+          throw new Error("Could not load all dashboard data.");
+        }
+
+        const transactionPayloads = await Promise.all(
+          currentResponses.map(({ transactionsResponse }) => transactionsResponse.json())
+        );
+        const expensePayloads = await Promise.all(
+          currentResponses.map(({ expensesResponse }) => expensesResponse.json())
+        );
+        const savingsPayloads = await Promise.all(
+          currentResponses.map(({ savingsResponse }) => savingsResponse.json())
+        );
+        const previousExpensePayloads = await Promise.all(
+          previousExpenseResponses.map((response) => response.json())
+        );
+
+        const transactionRows = transactionPayloads.flatMap((rows) => (Array.isArray(rows) ? rows : []));
+        const orderedRows = [...transactionRows].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const expenseTotal = expensePayloads.reduce(
+          (sum, payload) => sum + Number(payload?.total_expenses || 0),
+          0
+        );
+        const savingsTotal = savingsPayloads.reduce(
+          (sum, payload) => sum + Number(payload?.total_saving || 0),
+          0
+        );
+        const previousExpenseTotal = previousExpensePayloads.reduce(
+          (sum, payload) => sum + Number(payload?.total_expenses || 0),
+          0
+        );
+
+        const mappedTransactions = orderedRows.map((transaction) => {
+          const amount = Number(transaction.amount || 0);
+
+          return {
+            id: `${transaction.account_id}-${transaction.date}-${transaction.name}-${transaction.amount}`,
+            icon: connectIconForTransaction(transaction.category),
+            name: transaction.merchant_name || transaction.name || "Transaction",
+            when: relativeDateLabel(transaction.date),
+            amount: `${amount < 0 ? "-" : "+"}$${fmtMoney(Math.abs(amount))}`,
+            tone: amount < 0 ? "negative" : "positive",
+            important: Math.abs(amount) >= 50,
+          };
+        });
+
+        const expenseRows = orderedRows.filter((transaction) => Number(transaction.amount) < 0);
+        const incomeRows = orderedRows.filter((transaction) => Number(transaction.amount) >= 0);
+        const totalIncome = incomeRows.reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+        const totalExpense = Math.abs(
+          expenseRows.reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0)
+        );
+        const monthlyDelta =
+          previousExpenseTotal > 0
+            ? Math.round(((expenseTotal - previousExpenseTotal) / previousExpenseTotal) * 100)
+            : 0;
+
+        setRecentTransactions(mappedTransactions);
+        setTotalExpenses(expenseTotal);
+        setTotalSavings(savingsTotal);
+        setDeltaPct(monthlyDelta);
+        setStatusError(false);
+        setStatusMessage("");
+        setMonthlyDetail({
+          transactions: orderedRows.length,
+          avgExpense: expenseRows.length ? totalExpense / expenseRows.length : 0,
+          avgIncome: incomeRows.length ? totalIncome / incomeRows.length : 0,
+          net: totalIncome - totalExpense,
+          totalIncome,
+          totalExpense,
+          periodMonths: getPeriodLength(month),
+        });
+      } catch {
+        setStatusError(true);
+        setStatusMessage("Could not load all dashboard data. Showing your latest saved overview.");
+        setRecentTransactions([]);
+        setTotalExpenses(0);
+        setTotalSavings(0);
+        setDeltaPct(0);
+        setMonthlyDetail({
+          transactions: 0,
+          avgExpense: 0,
+          avgIncome: 0,
+          net: 0,
+          totalIncome: 0,
+          totalExpense: 0,
+          periodMonths: getPeriodLength(month),
+        });
+      }
+    };
+
+    loadMonthData();
+  }, [month, reloadKey, selectedAccountId]);
+
   const spendingSummary = useMemo(() => {
-    if (month === "Last Month") return { total: 1620.3, budget: 2200, deltaPct: -4 };
-    if (month === "2 Months Ago") return { total: 2010.1, budget: 2200, deltaPct: 9 };
-    return { total: 1847.5, budget: 2200, deltaPct: -12 };
-  }, [month]);
+    if (!recentTransactions.length && totalExpenses === 0) {
+      return defaultSpendingSummaryForMonth(month);
+    }
+
+    const periodMonths = Math.max(1, monthlyDetail.periodMonths || 1);
+    const avgMonthlyExpense = (monthlyDetail.totalExpense || totalExpenses || 0) / periodMonths;
+    const avgMonthlyIncome = (monthlyDetail.totalIncome || 0) / periodMonths;
+
+    let recommendedBudget =
+      avgMonthlyIncome > 0 ? avgMonthlyIncome * 0.6 : avgMonthlyExpense * 1.15;
+
+    if (!Number.isFinite(recommendedBudget) || recommendedBudget <= 0) {
+      recommendedBudget = 2200;
+    }
+
+    recommendedBudget = Math.max(500, Math.round(recommendedBudget / 50) * 50);
+    return { total: totalExpenses, budget: recommendedBudget, deltaPct };
+  }, [deltaPct, month, monthlyDetail, recentTransactions.length, totalExpenses]);
 
   const visibleTransactions = useMemo(() => {
-    const base = onlyImportant ? TRANSACTIONS.filter((transaction) => transaction.important) : TRANSACTIONS;
+    const source = recentTransactions.length ? recentTransactions : TRANSACTIONS;
+    const base = onlyImportant ? source.filter((transaction) => transaction.important) : source;
     return showAll ? base : base.slice(0, 4);
-  }, [onlyImportant, showAll]);
+  }, [onlyImportant, recentTransactions, showAll]);
 
   const financialOverview = useMemo(() => {
     const scholarshipAid = toNumber(profile?.scholarship_aid_amount);
@@ -1173,13 +1666,34 @@ export default function Dashboard() {
       <Navbar />
 
       <div className="db-body">
+        {statusMessage && (
+          <div className={`bank-status ${statusError ? "error" : ""}`}>{statusMessage}</div>
+        )}
+
         <div className="db-header">
           <div>
             <h1>{profile?.first_name ? `${profile.first_name}'s Dashboard` : "Dashboard"}</h1>
-            <p>Overview of spending, funding pressure, scholarship opportunities, and expiring savings.</p>
+            <p>
+              {bankCount > 0
+                ? `Live overview from ${bankCount} connected bank account${bankCount > 1 ? "s" : ""}.`
+                : "Overview of spending, funding pressure, scholarship opportunities, and expiring savings."}
+            </p>
           </div>
 
           <div className="db-header-right">
+            <ConnectBankButton
+              onLinked={(payload) => {
+                setStatusError(false);
+                setStatusMessage(payload?.message || "Bank account connected successfully.");
+                setBankCount((count) => count + 1);
+                setReloadKey((current) => current + 1);
+              }}
+              onError={(message) => {
+                setStatusError(true);
+                setStatusMessage(message || "Could not connect bank account.");
+              }}
+            />
+
             <MonthDropdown value={month} onChange={setMonth} options={MONTH_OPTIONS} />
 
             <div
@@ -1196,12 +1710,61 @@ export default function Dashboard() {
 
         <div className="db-grid">
           <div className="db-main">
+            {bankAccounts.length > 0 && (
+              <div className="bank-tabs">
+                <button
+                  type="button"
+                  className={`bank-tab ${selectedAccountId === "" ? "active" : ""}`}
+                  onClick={() => setSelectedAccountId("")}
+                >
+                  All
+                </button>
+                {bankAccounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    className={`bank-tab ${selectedAccountId === account.id ? "active" : ""}`}
+                    onClick={() => setSelectedAccountId(account.id)}
+                    title={account.name}
+                  >
+                    {shortAccountLabel(account.name)}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <HeroSpendingCard
               monthLabel={month}
               total={spendingSummary.total}
               budget={spendingSummary.budget}
               deltaPct={spendingSummary.deltaPct}
             />
+
+            <div className="card" style={{ marginTop: "0.8rem", marginBottom: "1rem", padding: "0.95rem 1rem" }}>
+              <div className="card-title">
+                <h2>Monthly Spending Details</h2>
+              </div>
+              <div className="mini-grid">
+                <div className="mini-card">
+                  <p className="mini-title">Transactions</p>
+                  <p className="mini-value">{monthlyDetail.transactions}</p>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-title">Avg Expense</p>
+                  <p className="mini-value neg">${fmtMoney(monthlyDetail.avgExpense)}</p>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-title">Avg Income</p>
+                  <p className="mini-value pos">${fmtMoney(monthlyDetail.avgIncome)}</p>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-title">Net Cash Flow</p>
+                  <p className={`mini-value ${monthlyDetail.net >= 0 ? "pos" : "neg"}`}>
+                    {monthlyDetail.net >= 0 ? "+" : "-"}${fmtMoney(Math.abs(monthlyDetail.net))}
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div className="actions">
               <QuickTile
@@ -1237,7 +1800,11 @@ export default function Dashboard() {
             <div className="insightCardSpacing">
               <InsightCard
                 title={financialInsight.title}
-                message={financialInsight.message}
+                message={
+                  !financialOverview.hasData && totalSavings > 0
+                    ? `You could save about $${fmtMoney(totalSavings)} this month by reducing repeated spending patterns.`
+                    : financialInsight.message
+                }
                 variant={financialInsight.variant}
               />
             </div>

@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
     'accounts',
     'scholarships',
     'rest_framework',
+    'spending',
     'corsheaders',
     'transactions',
 ]
@@ -80,8 +82,16 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
-# Fall back to a local SQLite database when Postgres isn't configured.
-if os.environ.get("POSTGRES_DB") and os.environ.get("POSTGRES_USER"):
+# Use an in-memory SQLite database for tests, Postgres when configured, and
+# finally a local SQLite file for lightweight local development.
+if "test" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+elif os.environ.get("POSTGRES_DB") and os.environ.get("POSTGRES_USER"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
