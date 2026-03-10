@@ -88,14 +88,25 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
-# Use an in-memory SQLite database for tests, Postgres when configured, and
-# finally a local SQLite file for lightweight local development.
-# Database
+# Use an in-memory SQLite database for tests.
+# In CI (e.g. GitHub Actions), use Postgres via POSTGRES_* env (host 127.0.0.1).
+# Otherwise use DATABASE_URL if set (e.g. Docker: db:5432), or POSTGRES_* with default host "db".
 if "test" in sys.argv:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": ":memory:",
+        }
+    }
+elif os.environ.get("GITHUB_ACTIONS") or os.environ.get("CI"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("POSTGRES_DB", "app"),
+            "USER": os.environ.get("POSTGRES_USER", "app"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "app"),
+            "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
+            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
         }
     }
 elif env("DATABASE_URL", default=None):
