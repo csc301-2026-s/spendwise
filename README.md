@@ -198,6 +198,28 @@ Click the settings icon to:
 
 ---
 
+## 8. Investments Feature
+
+**Built interactive 3-step flow turning real savings data into personalized portfolio recommendations.**
+
+Investmetn Guidance
+Click "Investments" tile to access goal simulator where you:
+
+- Review auto-filled savings baseline from spending analysis
+- Set financial goal (laptop/tuition/travel) with target amount/date/risk level
+- Compare 4 portfolios (Conservative/Balanced/Growth/Custom) vs savings-only
+- See projected value + investing edge ($80/mo advantage example)
+- Save goal + portfolio to track progress across SpendWise
+  *4 options: Conservative, Balanced, Growth, Custom*
+
+<img width="1600" height="1034" alt="image" src="https://github.com/user-attachments/assets/427e7727-3f08-474b-b3ba-df6c0d4426d1" />
+
+#### Future Improvements
+
+- ML-powered custom portfolios analyzing real-time market data (Yahoo Finance/Alpha Vantage)
+- Personalized allocation recommendations based on spending patterns + risk tolerance
+- Auto-rebalancing alerts when portfolio drifts from target allocations
+- Integration with actual brokerage APIs for live tracking
 
 ## Summary
 
