@@ -399,7 +399,12 @@ All folders and file names must use lowercase and follow Django’s default proj
 
 ---
 ## D3 Evolution 
-- Implementation of the Investments feature which is based on the user story where a UofT student wants guidance on investing using their savings analysis. It allows UofT students to learn about potential stock/ETFs combinations to invest in based on their savings calculated through the spending analysis feature. 
+- Plaid API integration for secure bank account linking and automatic transaction syncing (sandbox mode)
+- Spending analytics backend (/api/spending/monthly_saving_amount/) calculating savings from recurring patterns
+- Onboarding form capturing earnings, expenses, scholarships, campus/degree info for personalization
+- Student discounts frontend with SPC data scraping, search/filtering, and copy-to-clipboard functionality
+- Investing simulator linking spending baseline to portfolio comparisons
+  
 ## License
 
 - The repository will remain **private** during development.
