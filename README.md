@@ -64,12 +64,13 @@ http://134.122.6.117:5174/
 
 ## 2. Dashboard
 
-The Dashboard is the main landing page after login.
+The Dashboard is the main landing page after login. You’ll see a personalized greeting (e.g. “Good morning, [Name]”) based on the time of day and your profile.
 
 Here you can:
 - View an overview of your spending
-- See financial alerts
-- Check upcoming deadlines
+- Choose a spending period (This Month, Last Month, 3 Months, Past Year) from the dropdown for the spending overview
+- See financial alerts and connect or manage bank accounts
+- Check Upcoming Deadlines for saved scholarships (soonest first)
 - View a daily financial tip
 
 This page provides a quick summary of your financial status.
@@ -83,15 +84,15 @@ This page provides a quick summary of your financial status.
 
 Navigate to the **Scholarship** section from the navigation menu.
 
-On this page, you can:
-- Browse scholarships from all three UofT campuses and colleges
-- Filter scholarships by:
-  - Campus
-  - Year
-  - Faculty
-  - Discipline
+On this page you can:
+- Browse scholarships from UofT campuses and colleges
+- Match to my profile to see scholarships ranked by eligibility (edit your profile first for better matches)
+- Filter by campus, year, faculty, discipline, and other criteria
+- Save scholarships with the bookmark icon; they appear in “View saved” and in **Upcoming Deadlines** (Dashboard and this page)
+- View saved to see only your saved scholarships, each with a **status**: Saved / Planned, In Progress, or Submitted (manage status on the My Scholarships page)
+- Use the Upcoming Deadlines panel (fixed on the right) to see saved scholarships ordered by due date
 
-This helps students quickly identify funding opportunities that match their profile.
+This helps you quickly find and track funding opportunities that match your profile.
 
 <img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/c451a2e9-0b54-426d-97de-55587136dc83" />
 
@@ -172,16 +173,40 @@ The plaid API is being used in a sandbox environment to allow users to connect d
 sandbox environment will be able to switch to a dev env. This feature has been implemented end to end.
 
 
+
+---
+
+## 7. Profile & My Scholarships
+
+**Profile (navbar)**  
+Click your profile icon to open a dropdown with your name, major/year, and links to:
+- Edit Profile — opens the Profile page where you can set faculty, major, year, degree, status, and campus (used for scholarship matching).
+- My Scholarships — opens a Kanban board of your saved scholarships.
+- Log out
+
+**My Scholarships**  
+On the My Scholarships page you can:
+- See saved scholarships in three columns: **Saved / Planned**, **In Progress**, and **Submitted**
+- Drag and drop cards between columns to update their status
+- Each card shows title, amount, deadline, and a color-coded status pill
+
+**Settings (navbar)**  
+Click the settings icon to:
+- Switch theme between light and dark mode (saved for your next visit)
+- Report a bug (opens a form that emails a bug report)
+
+
 ---
 
 
 ## Summary
 
 SpendWise centralizes:
-- Financial tracking
-- Scholarship discovery
-- Spending management
-- Student discounts
+- Financial tracking with a personalized dashboard
+- Scholarship discovery, saving, and status tracking (Saved / In Progress / Submitted)
+- Profile-based matching and upcoming deadlines
+- Spending management and transaction insights
+- Student discounts and codes
 
 All in one platform designed to simplify financial decision-making for UofT students.
  
@@ -195,7 +220,7 @@ This project uses **Docker Compose** to orchestrate the Django (Backend), React 
 
 Before you begin, ensure you have:
 
-- **Docker Desktop** (latest version recommended)
+- **Docker Desktop** (Docker Compose V2 (Desktop Version 4.X onwards))
 - **Git**
 - **Python 3.10+** (only if using local virtual environment)
 
