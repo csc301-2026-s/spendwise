@@ -836,6 +836,14 @@ export default function Dashboard() {
                 toneClass="tCodes"
                 onClick={() => navigate("/student-codes")}
               />
+                {/* NEW INVESTING TILE */}
+              <QuickTile
+                icon="💰"
+                title="Investments"
+                subtitle="Practice portfolio"
+                toneClass="tInvest"
+                onClick={() => navigate("/investing")}
+              />
             </div>
 
             <div className="insightCardSpacing">
