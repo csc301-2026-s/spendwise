@@ -320,7 +320,6 @@ const fetchWithAuth = async (url) => {
   return res;
 };
 
-/** Time-based greeting using the user's local timezone. X = first name. */
 function getGreeting(firstName) {
   const name = (firstName || "").trim() || "there";
   const hour = new Date().getHours();
@@ -381,7 +380,6 @@ function relativeDateLabel(dateText) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const input = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.round((today - input) / (24 * 60 * 60 * 1000));
-
   if (diff === 0) return "Today";
   if (diff === 1) return "Yesterday";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -407,12 +405,10 @@ function HeroSpendingCard({ monthLabel, total, budget, deltaPct }) {
         </div>
         <div className={`hero-change ${trendClass}`}>{trendText}</div>
       </div>
-
       <div className="hero-meta">
         <span>Budget: ${budget.toLocaleString()}/mo</span>
         <span>{pctUsed}% used</span>
       </div>
-
       <div className="progress">
         <span />
       </div>
@@ -440,7 +436,6 @@ function QuickTile({ icon, title, subtitle, toneClass, onClick }) {
 
 function TransactionList({ items }) {
   if (!items.length) return <div className="empty">No transactions yet.</div>;
-
   return (
     <div className="list">
       {items.map((t) => (
@@ -475,7 +470,6 @@ function InsightCard({ title, message }) {
 
 function MonthDropdown({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
-
   return (
     <div
       className="pill db-period-pill"
@@ -489,7 +483,6 @@ function MonthDropdown({ value, onChange, options }) {
       <span className="db-period-label">Spending period</span>
       <span className="db-period-value">{value}</span>
       <span className="chev" aria-hidden>▼</span>
-
       {open && (
         <div className="menu" role="listbox" onClick={(e) => e.stopPropagation()}>
           {options.map((opt) => (
@@ -535,25 +528,19 @@ function ConnectBankButton({ onLinked, onError }) {
       try {
         const resp = await fetch("/api/plaid/exchange-token/", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders(),
-          },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({
             public_token: publicToken,
             institution: metadata?.institution || {},
           }),
         });
-
         const payload = await resp.json();
         if (!resp.ok) throw new Error(payload?.error || "Failed to connect bank account");
-
         const itemId = payload.item_id;
         await Promise.all([
           fetch(`/api/plaid/items/${itemId}/accounts/`, { headers: { ...authHeaders() } }),
           fetch(`/api/plaid/items/${itemId}/transactions/?days=180&count=500`, { headers: { ...authHeaders() } }),
         ]);
-
         onLinked(payload);
       } catch (e) {
         onError(e.message);
@@ -637,7 +624,6 @@ export default function Dashboard() {
           const payload = await itemResp.json();
           const items = payload?.items || [];
           setBankCount(items.length);
-
           if (items.length) {
             await Promise.all(
               items.map((it) =>
@@ -648,7 +634,6 @@ export default function Dashboard() {
               )
             );
           }
-
           await fetchBankAccounts();
         }
       } catch {
@@ -656,7 +641,6 @@ export default function Dashboard() {
         setStatusMessage("Could not sync your connected bank data right now.");
       }
     };
-
     load();
   }, [reloadKey]);
 
@@ -686,7 +670,6 @@ export default function Dashboard() {
             fetch(`/api/spending/total_expenses_amount/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } }),
             fetch(`/api/spending/monthly_saving_amount/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } }),
           ]);
-
           return { txResp, expenseResp, savingResp };
         })
       );
@@ -917,7 +900,6 @@ export default function Dashboard() {
                   {showAll ? "Show less" : "See all"}
                 </div>
               </div>
-
               <TransactionList items={visibleTransactions} />
             </div>
           </div>
@@ -930,6 +912,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-
-

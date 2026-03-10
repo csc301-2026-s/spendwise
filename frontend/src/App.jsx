@@ -26,14 +26,14 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-        <Route path="/" element={<PublicRoute><Registration /></PublicRoute>} />
-        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-        <Route path="/scholarships" element={<ProtectedRoute><Scholarships /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/my-scholarships" element={<ProtectedRoute><MyScholarships /></ProtectedRoute>} />
-        <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<PublicRoute><Registration /></PublicRoute>} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/scholarships" element={<ProtectedRoute><Scholarships /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/my-scholarships" element={<ProtectedRoute><MyScholarships /></ProtectedRoute>} />
+          <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

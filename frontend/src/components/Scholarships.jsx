@@ -618,6 +618,10 @@ function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status 
   const amt = formatAmount(s);
   const days = daysUntil(s.deadline);
   const isUrgent = days !== null && days <= 14;
+  const handleBookmark = () => {
+    if (isSaved) onUnsave?.(s.id);
+    else onSave?.(s.id);
+  };
 
   const handleBookmarkClick = () => {
     if (isSaved) onUnsave?.(s.id);
@@ -707,6 +711,7 @@ function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status 
 // ── Main Component ──
 export default function Scholarships() {
   const [scholarships, setScholarships] = useState([]);
+  const [savedScholarships, setSavedScholarships] = useState([]);
   const [matchResults, setMatchResults] = useState(null);
   const [loading, setLoading]          = useState(false);
   const [total, setTotal]              = useState(0);
@@ -725,6 +730,7 @@ export default function Scholarships() {
   const [viewSavedOnly, setViewSavedOnly]    = useState(false);
 
   const PAGE_SIZE = 20;
+  const savedIds = new Set((savedScholarships || []).map((s) => s.id));
 
   const getAccessToken = () =>
     sessionStorage.getItem("userAccessToken") || sessionStorage.getItem("userToken");
@@ -840,6 +846,23 @@ export default function Scholarships() {
     } finally { setLoading(false); }
   }, []);
 
+  // ── Fetch saved (for sidebar deadlines + bookmark state) ──
+  const fetchSaved = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/scholarships/saved/`, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedScholarships(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSaved();
+  }, [fetchSaved]);
+
   useEffect(() => {
     if (viewSavedOnly) return;
     if (onlyMatched) fetchMatch();
@@ -876,8 +899,10 @@ export default function Scholarships() {
               <h1>Scholarships & Bursaries</h1>
               <p>Matched to your program, faculty, and financial profile. Edit your profile from the menu.</p>
             </div>
+            )}
 
-            {/* Filter Bar */}
+            {/* Filter Bar (hide on saved view) */}
+            {!isSavedView && (
             <div className="sc-filter-bar">
               <div className="sc-search-wrap">
                 <SearchIcon />
@@ -940,6 +965,7 @@ export default function Scholarships() {
                 <BookmarkIcon filled={viewSavedOnly} /> {viewSavedOnly ? "Show all" : "View saved"}
               </button>
             </div>
+            )}
 
             {/* Results count */}
             {!loading && (

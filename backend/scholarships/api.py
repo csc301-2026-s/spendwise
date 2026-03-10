@@ -144,7 +144,6 @@ class ScholarshipDetailAPI(APIView):
             s = Scholarship.objects.get(pk=pk)
         except Scholarship.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-
         return Response(ScholarshipDetailSerializer(s).data)
 
 
@@ -170,14 +169,12 @@ class ScholarshipsMetaAPI(APIView):
             if Scholarship.objects.filter(**{field: True}).exists():
                 nature_vals.append(key)
 
-        faculty_college_vals = []
-
         return Response(
             {
                 "award_type": list(award_types),
                 "citizenship": citizenship_vals,
                 "nature": nature_vals,
-                "faculty_college": faculty_college_vals,
+                "faculty_college": [],
             }
         )
 
@@ -214,7 +211,6 @@ class ScholarshipsMatchAPI(APIView):
 
             blob = f"{s.title}\n{s.offered_by or ''}\n{s.description or ''}".lower()
 
-            # citizenship (0.30)
             if citizenship:
                 total += 0.30
                 c = citizenship.lower()
@@ -223,21 +219,18 @@ class ScholarshipsMatchAPI(APIView):
                     score += 0.30
                     reasons.append(f"Citizenship match: {citizenship}")
 
-            # faculty keyword (0.20)
             if faculty:
                 total += 0.20
                 if faculty.lower() in blob:
                     score += 0.20
                     reasons.append(f"Faculty keyword match: {faculty}")
 
-            # major keyword (0.25)
             if major:
                 total += 0.25
                 if major.lower() in blob:
                     score += 0.25
                     reasons.append(f"Major keyword match: {major}")
 
-            # degree type keyword (0.10)
             if degree_type:
                 total += 0.10
                 ok = False
@@ -249,14 +242,12 @@ class ScholarshipsMatchAPI(APIView):
                     score += 0.10
                     reasons.append(f"Degree keyword match: {p.get('degree_type')}")
 
-            # year keyword (0.10)
             if isinstance(year, int):
                 total += 0.10
                 if f"year {year}" in blob or f"{year}th year" in blob:
                     score += 0.10
                     reasons.append(f"Year keyword match: year {year}")
 
-            # campus keyword (0.05)
             if campus:
                 total += 0.05
                 if campus.lower() in blob:
@@ -264,16 +255,12 @@ class ScholarshipsMatchAPI(APIView):
                     reasons.append(f"Campus keyword match: {campus}")
 
             final = (score / total) if total > 0 else 0.0
+            results.append({
+                "scholarship": ScholarshipListSerializer(s).data,
+                "score": round(final, 3),
+                "reasons": reasons,
+            })
 
-            results.append(
-                {
-                    "scholarship": ScholarshipListSerializer(s).data,
-                    "score": round(final, 3),
-                    "reasons": reasons,
-                }
-            )
-
-        # Always order by match strength (strongest first), then deadline as tiebreaker
         def sort_key(x):
             d = x["scholarship"].get("deadline") or "9999-12-31"
             return (-x["score"], d)
