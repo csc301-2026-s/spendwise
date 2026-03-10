@@ -6,12 +6,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Scholarship, SavedScholarship, SavedScholarshipStatus
+from .models import Scholarship, SavedScholarship
 from .serializers import (
     ScholarshipListSerializer,
     ScholarshipDetailSerializer,
     MatchRequestSerializer,
-    SavedScholarshipSerializer,
 )
 
 NATURE_FIELD_MAP = {
@@ -283,12 +282,13 @@ class ScholarshipsMatchAPI(APIView):
 
 
 class SavedScholarshipsListAPI(APIView):
-    """List all saved scholarships with status for the authenticated user."""
+    """List all scholarships saved by the authenticated user."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        saved = SavedScholarship.objects.filter(user=request.user).select_related("scholarship").order_by("-saved_at")
-        data = SavedScholarshipSerializer(saved, many=True).data
+        saved = SavedScholarship.objects.filter(user=request.user).select_related("scholarship")
+        scholarships = [ss.scholarship for ss in saved]
+        data = ScholarshipListSerializer(scholarships, many=True).data
         return Response(data)
 
 
@@ -318,23 +318,3 @@ class SaveUnsaveScholarshipAPI(APIView):
         if not deleted:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class SavedScholarshipStatusAPI(APIView):
-    """PATCH: update status of a saved scholarship (saved, in_progress, submitted)."""
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request, pk):
-        try:
-            saved = SavedScholarship.objects.get(pk=pk, user=request.user)
-        except SavedScholarship.DoesNotExist:
-            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-        new_status = request.data.get("status")
-        if new_status not in {s.value for s in SavedScholarshipStatus}:
-            return Response(
-                {"detail": "Invalid status. Use: saved, in_progress, submitted"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        saved.status = new_status
-        saved.save()
-        return Response(SavedScholarshipSerializer(saved).data)
