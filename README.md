@@ -336,7 +336,8 @@ This structure ensures accountability through Jira tracking, improves collaborat
 
 All folders and file names must use lowercase and follow Django’s default project structure. We maintain consistent code organization by structuring backend files according to features and will document our workflow to ensure clarity, scalability, and team alignment.
 ---
-
+## D3 Evolution 
+- Implementation of the Investments feature which is based on the user story where a UofT student wants guidance on investing using their savings analysis. It allows UofT students to learn about potential stock/ETFs combinations to invest in based on their savings calculated through the spending analysis feature. 
 ## License
 
 - The repository will remain **private** during development.
