@@ -83,6 +83,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
+# Use an in-memory SQLite database for tests, Postgres when configured, and
+# finally a local SQLite file for lightweight local development.
 if "test" in sys.argv:
     DATABASES = {
         "default": {
@@ -90,7 +92,7 @@ if "test" in sys.argv:
             "NAME": ":memory:",
         }
     }
-else:
+elif os.environ.get("POSTGRES_DB") and os.environ.get("POSTGRES_USER"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -99,6 +101,13 @@ else:
             "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
             "HOST": os.environ.get("POSTGRES_HOST", "db"),
             "PORT": os.environ.get("POSTGRES_PORT", 5432),
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
 
