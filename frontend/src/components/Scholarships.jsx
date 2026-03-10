@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
 
-const API = "http://localhost:8000/api";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
+function authHeaders() {
+  const token = sessionStorage.getItem("userToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+3:wght@300;400;500;600&display=swap');
@@ -233,6 +239,8 @@ const styles = `
     transition: color 0.15s, border-color 0.15s;
   }
   .sc-bookmark-btn:hover { color: var(--uoft-blue); border-color: var(--uoft-blue); }
+  .sc-bookmark-btn.saved { color: var(--uoft-mid); border-color: var(--uoft-mid); background: #E8F0FC; }
+  .sc-bookmark-btn.saved:hover { color: var(--uoft-blue); border-color: var(--uoft-blue); }
 
   .sc-card-amount {
     font-size: 1.4rem;
@@ -570,16 +578,24 @@ function formatDeadline(dateStr) {
 }
 
 // ── Sub-components ──
-function ScholarshipCard({ s, score, reasons }) {
+function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave }) {
   const amt = formatAmount(s);
   const days = daysUntil(s.deadline);
   const isUrgent = days !== null && days <= 14;
+  const handleBookmark = () => {
+    if (isSaved) onUnsave?.(s.id);
+    else onSave?.(s.id);
+  };
 
   return (
     <div className="sc-card">
       <div className="sc-card-top">
         <div className="sc-card-title">{s.title}</div>
-        <button className="sc-bookmark-btn" title="Bookmark">
+        <button
+          className={`sc-bookmark-btn ${isSaved ? "saved" : ""}`}
+          title={isSaved ? "Unsave scholarship" : "Save scholarship"}
+          onClick={handleBookmark}
+        >
           <BookmarkIcon />
         </button>
       </div>
@@ -701,9 +717,14 @@ function ProfileModal({ profile, onSave, onClose }) {
 
 // ── Main Component ──
 export default function Scholarships() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isSavedView = location.pathname === "/scholarships/saved";
+
   const [profile, setProfile]         = useState(loadProfile);
   const [showModal, setShowModal]      = useState(false);
   const [scholarships, setScholarships] = useState([]);
+  const [savedScholarships, setSavedScholarships] = useState([]);
   const [matchResults, setMatchResults] = useState(null);
   const [loading, setLoading]          = useState(false);
   const [total, setTotal]              = useState(0);
@@ -717,6 +738,7 @@ export default function Scholarships() {
   const [filterAwardType, setFilterAwardType]     = useState("");
 
   const PAGE_SIZE = 20;
+  const savedIds = new Set((savedScholarships || []).map((s) => s.id));
 
   // ── Fetch list ──
   const fetchScholarships = useCallback(async () => {
@@ -753,10 +775,28 @@ export default function Scholarships() {
     } finally { setLoading(false); }
   }, [profile]);
 
+  // ── Fetch saved (for sidebar deadlines + bookmark state) ──
+  const fetchSaved = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/scholarships/saved/`, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedScholarships(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   useEffect(() => {
+    fetchSaved();
+  }, [fetchSaved]);
+
+  useEffect(() => {
+    if (isSavedView) return;
     if (onlyMatched) { fetchMatch(); }
     else { fetchScholarships(); }
-  }, [onlyMatched, fetchScholarships, fetchMatch]);
+  }, [isSavedView, onlyMatched, fetchScholarships, fetchMatch]);
 
   // reset page on filter change
   useEffect(() => { setPage(1); }, [q, sortBy, filterCitizenship, filterAwardType, onlyMatched]);
@@ -768,18 +808,41 @@ export default function Scholarships() {
     if (onlyMatched) fetchMatch();
   };
 
-  const displayList = onlyMatched
-    ? (matchResults || []).map((r) => ({ ...r.scholarship, _score: r.score, _reasons: r.reasons }))
-    : scholarships;
+  const handleSaveScholarship = async (id) => {
+    try {
+      const res = await fetch(`${API}/scholarships/${id}/save/`, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+      });
+      if (res.ok) await fetchSaved();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUnsaveScholarship = async (id) => {
+    try {
+      const res = await fetch(`${API}/scholarships/${id}/unsave/`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (res.ok) await fetchSaved();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const displayList = isSavedView
+    ? savedScholarships
+    : onlyMatched
+      ? (matchResults || []).map((r) => ({ ...r.scholarship, _score: r.score, _reasons: r.reasons }))
+      : scholarships;
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  // Upcoming deadlines — scholarships with a deadline, sorted soonest first
-  const upcomingDeadlines = [...(onlyMatched
-    ? (matchResults || []).map(r => r.scholarship)
-    : scholarships
-  )]
-    .filter(s => s.deadline)
+  // Upcoming deadlines = saved scholarships with a deadline (same source for dashboard & scholarships)
+  const upcomingDeadlines = (savedScholarships || [])
+    .filter((s) => s.deadline)
     .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
     .slice(0, 6);
 
@@ -797,11 +860,27 @@ export default function Scholarships() {
 
             {/* Header */}
             <div className="sc-header">
-              <h1>Scholarships & Bursaries</h1>
-              <p>Matched to your program, faculty, and financial profile.</p>
+              <h1>{isSavedView ? "Saved Scholarships" : "Scholarships & Bursaries"}</h1>
+              <p>
+                {isSavedView
+                  ? "Your saved scholarships and their upcoming deadlines."
+                  : "Matched to your program, faculty, and financial profile."}
+              </p>
+              <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                {isSavedView ? (
+                  <button type="button" className="sc-edit-btn" onClick={() => navigate("/scholarships")}>
+                    ← Back to all scholarships
+                  </button>
+                ) : (
+                  <button type="button" className="sc-edit-btn" onClick={() => navigate("/scholarships/saved")}>
+                    📑 View saved scholarships
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Profile Bar */}
+            {/* Profile Bar (hide on saved view) */}
+            {!isSavedView && (
             <div className="sc-profile-bar">
               <div className="sc-profile-fields">
                 {[
@@ -822,8 +901,10 @@ export default function Scholarships() {
                 <EditIcon /> Edit Profile
               </button>
             </div>
+            )}
 
-            {/* Filter Bar */}
+            {/* Filter Bar (hide on saved view) */}
+            {!isSavedView && (
             <div className="sc-filter-bar">
               <div className="sc-search-wrap">
                 <SearchIcon />
@@ -868,13 +949,16 @@ export default function Scholarships() {
                 <div className={`sc-toggle ${onlyMatched ? "on" : ""}`} />
               </div>
             </div>
+            )}
 
             {/* Results count */}
             {!loading && (
               <div className="sc-results-header">
-                {onlyMatched
-                  ? `${displayList.length} scholarships matched to your profile`
-                  : `${total} scholarships found`}
+                {isSavedView
+                  ? `${displayList.length} saved scholarship${displayList.length !== 1 ? "s" : ""}`
+                  : onlyMatched
+                    ? `${displayList.length} scholarships matched to your profile`
+                    : `${total} scholarships found`}
               </div>
             )}
 
@@ -894,6 +978,9 @@ export default function Scholarships() {
                   s={s}
                   score={s._score}
                   reasons={s._reasons}
+                  isSaved={savedIds.has(s.id)}
+                  onSave={handleSaveScholarship}
+                  onUnsave={handleUnsaveScholarship}
                 />
               ))
             )}

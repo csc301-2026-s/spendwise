@@ -1,6 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
+function authHeaders() {
+  const token = sessionStorage.getItem("userToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 /* DUMMY DATA (Temporary) -------------------------------- */
 // TODO: Add a more comprehensive list of options (4) and an option to select specific months
@@ -83,36 +90,7 @@ const TRANSACTIONS = [
   },
 ];
 
-const DEADLINES = [
-  {
-    id: 1,
-    day: "28",
-    title: "OSAP Application",
-    meta: "Due Feb 28 — 6 days left",
-    badgeClass: "d-red",
-  },
-  {
-    id: 2,
-    day: "01",
-    title: "Rogers Phone Bill",
-    meta: "Due Mar 1 — $55.00",
-    badgeClass: "d-yellow",
-  },
-  {
-    id: 3,
-    day: "15",
-    title: "Lester B. Pearson Scholarship",
-    meta: "Due Mar 15 — $10,000 award",
-    badgeClass: "d-blue",
-  },
-    {
-    id: 3,
-    day: "18",
-    title: "UofT Scholarship",
-    meta: "Due Mar 18 — $5,000 award",
-    badgeClass: "d-blue",
-  },
-];
+// Upcoming deadlines are loaded from saved scholarships (see Dashboard below).
 
 /* CSS CODE -------------------------------- */
 const styles = `
@@ -682,6 +660,18 @@ function MonthDropdown({ value, onChange, options }) {
   );
 }
 
+/* Helpers for deadlines from saved scholarships */
+function formatDeadlineDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function daysLeft(dateStr) {
+  if (!dateStr) return null;
+  return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+}
+
 /* DASHBOARD --------------------------------*/
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -689,6 +679,50 @@ export default function Dashboard() {
   const [month, setMonth] = useState("This Month");
   const [onlyImportant, setOnlyImportant] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [savedScholarships, setSavedScholarships] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/scholarships/saved/`, { headers: authHeaders() });
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setSavedScholarships(Array.isArray(data) ? data : []);
+        }
+      } catch (e) {
+        if (!cancelled) console.error(e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const deadlines = useMemo(() => {
+    return (savedScholarships || [])
+      .filter((s) => s.deadline)
+      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+      .slice(0, 8)
+      .map((s) => {
+        const d = new Date(s.deadline);
+        const day = d.getDate().toString().padStart(2, "0");
+        const days = daysLeft(s.deadline);
+        const amountText = s.amount_max
+          ? `$${s.amount_max.toLocaleString()} award`
+          : s.amount_text || "Scholarship";
+        const meta =
+          days !== null && days >= 0
+            ? `Due ${formatDeadlineDate(s.deadline)} — ${days} days left`
+            : `Due ${formatDeadlineDate(s.deadline)} — ${amountText}`;
+        const badgeClass = days !== null && days <= 7 ? "d-red" : days !== null && days <= 14 ? "d-yellow" : "d-blue";
+        return {
+          id: s.id,
+          day,
+          title: s.title,
+          meta,
+          badgeClass,
+        };
+      });
+  }, [savedScholarships]);
 
   const spendingSummary = useMemo(() => {
     if (month === "Last Month") return { total: 1620.3, budget: 2200, deltaPct: -4 };
@@ -786,12 +820,15 @@ export default function Dashboard() {
             <div className="card">
               <div className="card-title">
                 <h2>Upcoming Deadlines</h2>
+                <div className="link" onClick={() => navigate("/scholarships/saved")}>
+                  Saved
+                </div>
               </div>
-              {DEADLINES.length === 0 ? (
-                <div className="empty">No upcoming deadlines found.</div>
+              {deadlines.length === 0 ? (
+                <div className="empty">Save scholarships to see upcoming deadlines here.</div>
               ) : (
                 <div className="list">
-                  {DEADLINES.map((d) => (
+                  {deadlines.map((d) => (
                     <div className="row" key={d.id}>
                       <div className="row-left">
                         <div className={`deadlineBadge ${d.badgeClass}`}>{d.day}</div>
@@ -800,7 +837,12 @@ export default function Dashboard() {
                           <div className="row-sub">{d.meta}</div>
                         </div>
                       </div>
-                      <div style={{ color: "var(--text-muted)", fontWeight: 900 }}>›</div>
+                      <div
+                        style={{ color: "var(--text-muted)", fontWeight: 900, cursor: "pointer" }}
+                        onClick={() => navigate("/scholarships/saved")}
+                      >
+                        ›
+                      </div>
                     </div>
                   ))}
                 </div>

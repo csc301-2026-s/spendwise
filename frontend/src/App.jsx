@@ -26,6 +26,7 @@ export default function App() {
 
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/scholarships" element={<ProtectedRoute><Scholarships /></ProtectedRoute>} />
+        <Route path="/scholarships/saved" element={<ProtectedRoute><Scholarships /></ProtectedRoute>} />
         <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/login" replace />} />

@@ -1,4 +1,5 @@
 import uuid
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -65,5 +66,28 @@ class Scholarship(models.Model):
             models.Index(fields=["open_to_domestic"]),
             models.Index(fields=["open_to_international"]),
         ]
+
     def __str__(self):
-        return self.title        
+        return self.title
+
+
+class SavedScholarship(models.Model):
+    """User's saved/bookmarked scholarships — used for profile list and upcoming deadlines."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="saved_scholarships",
+    )
+    scholarship = models.ForeignKey(
+        Scholarship,
+        on_delete=models.CASCADE,
+        related_name="saved_by_users",
+    )
+    saved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [["user", "scholarship"]]
+        ordering = ["-saved_at"]
+
+    def __str__(self):
+        return f"{self.user_id} saved {self.scholarship_id}"        

@@ -2,11 +2,11 @@ from django.db.models import Q, Value                  # ✅ added Value import
 from django.db.models.functions import Coalesce
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Scholarship
+from .models import Scholarship, SavedScholarship
 from .serializers import (
     ScholarshipListSerializer,
     ScholarshipDetailSerializer,
@@ -274,3 +274,51 @@ class ScholarshipsMatchAPI(APIView):
 
         results.sort(key=sort_key)
         return Response(results)
+
+
+# ── Saved scholarships (authenticated) ──
+
+
+class SavedScholarshipListAPI(APIView):
+    """GET list of saved scholarships for the current user (used for saved list + upcoming deadlines)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = SavedScholarship.objects.filter(user=request.user).select_related("scholarship")
+        scholarships = [ss.scholarship for ss in qs]
+        data = ScholarshipListSerializer(scholarships, many=True).data
+        return Response(data)
+
+
+class SaveScholarshipAPI(APIView):
+    """POST to save a scholarship for the current user."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            scholarship = Scholarship.objects.get(pk=pk)
+        except Scholarship.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        _, created = SavedScholarship.objects.get_or_create(
+            user=request.user,
+            scholarship=scholarship,
+        )
+        return Response(
+            {"saved": True, "created": created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class UnsaveScholarshipAPI(APIView):
+    """DELETE to remove a saved scholarship for the current user."""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        deleted, _ = SavedScholarship.objects.filter(
+            user=request.user,
+            scholarship_id=pk,
+        ).delete()
+        return Response(
+            {"saved": False, "removed": deleted > 0},
+            status=status.HTTP_200_OK,
+        )
