@@ -9,6 +9,7 @@ from decimal import Decimal
 from transactions.models import Transaction
 
 
+
 class SpendingViewset(viewsets.ViewSet):
 
     permission_classes = [permissions.IsAuthenticated]
@@ -133,60 +134,60 @@ class SpendingViewset(viewsets.ViewSet):
 
         saving = []
 
-        for row in spending:
-            merchant = row["merchant_display"]
-            merchant_upper = (merchant or "").upper()
-            total = row["total_abs"] or Decimal("0")
+        for s in spending:
+
+            merchant = s["merchant_display"]
+            name = (merchant or "").upper()
+            total = s["total_abs"] or Decimal("0")
 
             # Food delivery
-            if "UBER" in merchant_upper or "DOORDASH" in merchant_upper:
+            if "UBER" in name or "DOORDASH" in name:
+
                 possible = total - 200
+
                 if possible > 0:
-                    saving.append(
+                   saving.append(
                         {
                             "name": merchant,
                             "total": total,
                             "per_saving": int(possible),
-                            "desc": "Reduce food delivery spending to save about $200 this month.",
+                            "desc": "Cut back on food delivery to save at least $30 this month.",
                         }
                     )
 
             # TTC transit
-            elif "PRESTO" in merchant_upper:
+            elif "PRESTO" in name:
                 possible = total * Decimal("0.40")
-                saving.append(
-                    {
-                        "name": merchant,
-                        "total": total,
-                        "per_saving": int(possible),
-                        "desc": "Consider transit pass/discounts to cut transit costs.",
-                    }
-                )
 
-            # Flights
-            elif "UNITED AIRLINES" in merchant_upper:
+                saving.append({
+                    "name": merchant,
+                    "total": total,
+                    "per_saving": int(possible),
+                    "desc": "Get TTC Monthly Pass for 128 and enjoy Unlimited Rides for the whole month"
+                    })
+            elif "UNITED AIRLINES" in name:
+
                 possible = total * Decimal("0.05")
-                saving.append(
-                    {
-                        "name": merchant,
-                        "total": total,
-                        "per_saving": int(possible),
-                        "desc": "Look for student fares/promos to save ~5% on flights.",
-                    }
-                )
+
+                saving.append({
+                    "name": merchant,
+                    "total": total,
+                    "per_saving": int(possible),
+                    "desc": "Get 5percent off United Economy® and Basic Economy fares, applicable to ages 18-23"
+                })
 
             # Gym membership
-            elif "BASECAMP" in merchant_upper:
+            elif "BASECAMP" in name:
+
                 possible = total - 27
+
                 if possible > 0:
-                    saving.append(
-                        {
-                            "name": merchant,
-                            "total": total,
-                            "per_saving": int(possible),
-                            "desc": "Switch to a lower-cost gym plan to save this month.",
-                        }
-                    )
+                    saving.append({
+                        "name": merchant,
+                        "total": total,
+                        "per_saving": int(possible),
+                        "desc": "Get Tickets up to 9 dollars by claiming one of the offer on their Instagram Page"
+                    })
 
         return Response(saving)
 
