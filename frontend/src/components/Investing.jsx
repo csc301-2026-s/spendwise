@@ -365,12 +365,13 @@ const styles = `
 `;
 
 function getAuthHeaders() {
-  const token = sessionStorage.getItem("userAccessToken") || sessionStorage.getItem("userToken");
+  const token = sessionStorage.getItem("userToken");  // ← sessionStorage
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
+
 
 function money(value) {
   return Number(value || 0).toLocaleString(undefined, {
