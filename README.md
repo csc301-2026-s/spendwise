@@ -42,7 +42,7 @@ SpendWise empowers students to discover funding, reduce living costs, and manage
 
 ## How to Use the Application
 
-After running the application locally (see Development Environment Setup instructions below),  open:
+Deployed the version through Digitial Ocean App
 
 http://134.122.6.117:5174/
 
