@@ -315,6 +315,14 @@ SpendWise centralizes:
 
 All in one platform designed to simplify financial decision-making for UofT students.
 
+Since D2, we have:
+
+- **Plaid integration** — Real-time transaction sync in sandbox mode; connect bank accounts and view transactions.
+- **User profile** — Academic profile (faculty, major, year, etc.) used for scholarship matching; editable from the dedicated Profile page and navbar.
+- **Filtering and insights** — Filter transactions by period, account, category, and date; Saving Tips panel with tailored suggestions.
+- **Scholarships workflow** — Save scholarships, track status (Saved / In Progress / Submitted), Kanban board (My Scholarships), profile-based matching, and Upcoming Deadlines on Dashboard and Scholarships page.
+- **Theme and settings** — Light/dark mode (persisted) and Report a bug from the navbar settings dropdown.
+
  ---
  
 # Development Environment Setup
