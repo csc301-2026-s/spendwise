@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 
-const API = "http://localhost:8000/api";
+const API = `${import.meta.env.VITE_API_URL}/api`;
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+3:wght@300;400;500;600&display=swap');
