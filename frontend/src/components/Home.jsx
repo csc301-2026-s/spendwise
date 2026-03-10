@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlaidLink } from "react-plaid-link";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
@@ -1190,6 +1190,11 @@ function ExpiringCodesCard({ items }) {
 function ConnectBankButton({ onLinked, onError }) {
   const [linkToken, setLinkToken] = useState(null);
   const [busy, setBusy] = useState(false);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   useEffect(() => {
     fetch("/api/plaid/link-token/", {
@@ -1201,8 +1206,8 @@ function ConnectBankButton({ onLinked, onError }) {
         return response.json();
       })
       .then((data) => setLinkToken(data.link_token))
-      .catch((error) => onError(error.message));
-  }, [onError]);
+      .catch((e) => onErrorRef.current(e.message));
+  }, []);
 
   const { open, ready } = usePlaidLink({
     token: linkToken,
