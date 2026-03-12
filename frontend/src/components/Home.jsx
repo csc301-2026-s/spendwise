@@ -7,35 +7,6 @@ import UpcomingDeadlines from "./UpcomingDeadlines";
 
 const MONTH_OPTIONS = ["This Month", "Last Month", "3 Months", "Past Year"];
 
-
-const API = "/api";
-const token = () => sessionStorage.getItem("userAccessToken") || sessionStorage.getItem("userToken");
-const refreshAccessToken = async () => {
-  const refresh = sessionStorage.getItem("userRefreshToken");
-  if (!refresh) return null;
-  const res = await fetch(`${API}/token/refresh/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh }),
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!data?.access) return null;
-  sessionStorage.setItem("userToken", data.access);
-  sessionStorage.setItem("userAccessToken", data.access);
-  return data.access;
-};
-const fetchWithAuth = async (url) => {
-  let t = token();
-  if (!t) return { ok: false, status: 401 };
-  let res = await fetch(url, { headers: { ...authHeaders() } });
-  if (res.status === 401) {
-    const newT = await refreshAccessToken();
-    if (newT) res = await fetch(url, { headers: { Authorization: `Bearer ${newT}` } });
-  }
-  return res;
-};
-
 /** Time-based greeting using the user's local timezone. X = first name. */
 function getGreeting(firstName) {
   const name = (firstName || "").trim() || "there";
@@ -163,21 +134,19 @@ const ScholarshipIcon = () => (
     <path d="M12 14l6.16-3.422a12 12 0 0 1.665 6.479A11.96 11.96 0 0 0 12 20.055a11.96 11.96 0 0 0-7.825-2.998 12 12 0 0 1 .665-6.479L12 14z"/>
   </svg>
 );
-const BillsIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <path d="M14 2v6h6"/>
-    <path d="M16 13H8"/>
-    <path d="M16 17H8"/>
-    <path d="M10 9H8"/>
-  </svg>
-);
 const StudentCodesIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
     <line x1="7" y1="7" x2="7.01" y2="7"/>
   </svg>
 );
+const InvestmentsIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="2" x2="12" y2="22" />
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+  </svg>
+);
+
 const InsightIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 18h6"/>
@@ -628,19 +597,19 @@ export default function Dashboard() {
                 onClick={() => navigate("/scholarships")}
               />
               <QuickTile
-                icon={<BillsIcon />}
-                title="Bills"
-                subtitle="View upcoming bills"
-                toneClass="tBills"
-                onClick={() => navigate("/bills")}
-              />
-              <QuickTile
                 icon={<StudentCodesIcon />}
                 title="Student Codes"
                 subtitle="Apply a discount code"
                 toneClass="tCodes"
                 onClick={() => navigate("/student-codes")}
+              /><QuickTile
+                icon={<InvestmentsIcon />}
+                title="Your Investments"
+                subtitle="Your Monthly Investments"
+                toneClass="tInvestment"
+                onClick={() => navigate("/investing")}
               />
+
             </div>
 
             <div className="insightCardSpacing">

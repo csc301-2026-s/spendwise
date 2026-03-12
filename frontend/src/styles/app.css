@@ -21,6 +21,47 @@
 .sw-input, .sw-select { width: 100%; height: 42px; border: 1.5px solid var(--sw-border); border-radius: 8px; padding: 0 0.75rem; font-family: 'Source Sans 3', sans-serif; font-size: 0.88rem; font-weight: 600; color: var(--sw-text); background: var(--sw-bg-card); outline: none; }
 .sw-input:focus, .sw-select:focus { border-color: var(--sw-primary); }
 
+/* ── Toast ── */
+.sw-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  max-width: min(360px, calc(100vw - 44px));
+  background: var(--sw-bg-card);
+  border: 1.5px solid var(--sw-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,42,92,0.16);
+  color: var(--sw-text);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  animation: sw-toast-in 140ms ease-out;
+}
+.sw-toast.success { border-color: rgba(24,165,116,0.35); }
+.sw-toast.error { border-color: rgba(192,57,43,0.35); }
+.sw-toast-msg { min-width: 0; }
+.sw-toast-close {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--sw-text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+}
+.sw-toast-close:hover { color: var(--sw-text); }
+@keyframes sw-toast-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 /* ── Investing ── */
 .inv-page { min-height: 100vh; background: var(--sw-bg); font-family: 'Source Sans 3', sans-serif; }
 .inv-body { max-width: 1200px; margin: 0 auto; padding: 2rem; }

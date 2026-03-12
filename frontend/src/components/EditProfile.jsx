@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { saveProfile } from "../utils/session";
 
 const PROFILE_KEY = "userProfile";
@@ -32,7 +33,21 @@ export default function EditProfile({ profile: initialProfile, apiProfile, onSav
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const showToast = useCallback((message, tone = "success") => {
+    setToast({ message, tone });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2200);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (apiProfile) {
@@ -69,6 +84,7 @@ export default function EditProfile({ profile: initialProfile, apiProfile, onSav
         });
       }
       onSave?.({ ...form, ...scholProfile });
+      showToast("Your data is saved.", "success");
     } catch (err) {
       setError(err.message || "Failed to save profile.");
     } finally {
@@ -151,6 +167,18 @@ export default function EditProfile({ profile: initialProfile, apiProfile, onSav
           </button>
         </div>
       </div>
+
+      {toast &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className={`sw-toast ${toast.tone || ""}`} role="status" aria-live="polite">
+            <div className="sw-toast-msg">{toast.message}</div>
+            <button className="sw-toast-close" onClick={() => setToast(null)} aria-label="Close">
+              ×
+            </button>
+          </div>,
+          document.body
+        )}
     </>
   );
 }
