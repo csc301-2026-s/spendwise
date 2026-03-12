@@ -11,6 +11,9 @@ import { getToken, isOnboardingComplete } from "./utils/session"
 import Plaid from "./components/Plaid"
 import Transactions from "./components/Transactions"
 import Investing from "./components/Investing"
+import StudentCodeDetail from "./components/StudentCodeDetail";
+import StudentCodes from "./components/StudentCodes"
+
 
 const ProtectedRoute = ({ children }) => {
   const token = getToken();
@@ -42,6 +45,7 @@ export default function App() {
         <Route path="/my-scholarships" element={<ProtectedRoute><MyScholarships /></ProtectedRoute>} />
         <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
         <Route path="/investing" element={<ProtectedRoute><Investing /></ProtectedRoute>} />
+         <Route path="/student-codes" element={<ProtectedRoute><StudentCodes /></ProtectedRoute>} />
           {/* <Route path="/student-codes/deal/:id" element={<ProtectedRoute><StudentCodeDetail /></ProtectedRoute>} /> */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

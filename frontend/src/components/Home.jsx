@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlaidLink } from "react-plaid-link";
-import { API_BASE_URL, authHeaders, fetchProfile } from "../utils/session";
+import { API_BASE_URL, authHeaders, fetchWithAuth } from "../utils/session";
 import Navbar from "./Navbar";
 import UpcomingDeadlines from "./UpcomingDeadlines";
 
@@ -260,7 +260,7 @@ function ConnectBankButton({ onLinked, onError }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetch("/api/plaid/link-token/", { method: "POST", headers: { ...authHeaders() } })
+    fetch(`${API_BASE_URL}/plaid/link-token/`, { method: "POST", headers: { ...authHeaders() } })
       .then(async (r) => {
         if (!r.ok) throw new Error("Unable to initialize Plaid Link");
         return r.json();
@@ -274,7 +274,7 @@ function ConnectBankButton({ onLinked, onError }) {
     onSuccess: async (publicToken, metadata) => {
       setBusy(true);
       try {
-        const resp = await fetch("/api/plaid/exchange-token/", {
+        const resp = await fetch(`${API_BASE_URL}/plaid/exchange-token/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -291,8 +291,8 @@ function ConnectBankButton({ onLinked, onError }) {
 
         const itemId = payload.item_id;
         await Promise.all([
-          fetch(`/api/plaid/items/${itemId}/accounts/`, { headers: { ...authHeaders() } }),
-          fetch(`/api/plaid/items/${itemId}/transactions/?days=180&count=500`, { headers: { ...authHeaders() } }),
+          fetch(`${API_BASE_URL}/plaid/items/${itemId}/accounts/`, { headers: { ...authHeaders() } }),
+          fetch(`${API_BASE_URL}/plaid/items/${itemId}/transactions/?days=180&count=500`, { headers: { ...authHeaders() } }),
         ]);
 
         onLinked(payload);
@@ -349,7 +349,7 @@ export default function Dashboard() {
   const selectedBankNameShort = selectedBankName ? shortAccountLabel(selectedBankName) : "";
 
   const fetchBankAccounts = async () => {
-    const accResp = await fetch("/api/plaid/bank-accounts/", { headers: { ...authHeaders() } });
+    const accResp = await fetch(`${API_BASE_URL}/plaid/bank-accounts/`, { headers: { ...authHeaders() } });
     if (!accResp.ok) return [];
     const payload = await accResp.json();
     const rows = Array.isArray(payload?.accounts) ? payload.accounts : [];
@@ -373,7 +373,7 @@ export default function Dashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const itemResp = await fetch("/api/plaid/items/", { headers: { ...authHeaders() } });
+        const itemResp = await fetch(`${API_BASE_URL}/plaid/items/`, { headers: { ...authHeaders() } });
         if (itemResp.ok) {
           const payload = await itemResp.json();
           const items = payload?.items || [];
@@ -383,8 +383,8 @@ export default function Dashboard() {
             await Promise.all(
               items.map((it) =>
                 Promise.all([
-                  fetch(`/api/plaid/items/${it.item_id}/accounts/`, { headers: { ...authHeaders() } }),
-                  fetch(`/api/plaid/items/${it.item_id}/transactions/?days=180&count=500`, { headers: { ...authHeaders() } }),
+                  fetch(`${API_BASE_URL}/plaid/items/${it.item_id}/accounts/`, { headers: { ...authHeaders() } }),
+                  fetch(`${API_BASE_URL}/plaid/items/${it.item_id}/transactions/?days=180&count=500`, { headers: { ...authHeaders() } }),
                 ])
               )
             );
@@ -402,7 +402,7 @@ export default function Dashboard() {
   }, [reloadKey]);
 
   useEffect(() => {
-    fetchWithAuth(`${API}/profile/`).then((res) => {
+    fetchWithAuth(`${API_BASE_URL}/me/`).then((res) => {
       if (res.ok) res.json().then((data) => setFirstName(data?.first_name || ""));
     });
   }, []);
@@ -423,9 +423,9 @@ export default function Dashboard() {
       const selectedPeriodFetches = await Promise.all(
         periodMonths.map(async ({ month: m, year: y }) => {
           const [txResp, expenseResp, savingResp] = await Promise.all([
-            fetch(`/api/spending/monthly_transactions/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } }),
-            fetch(`/api/spending/total_expenses_amount/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } }),
-            fetch(`/api/spending/monthly_saving_amount/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } }),
+            fetch(`${API_BASE_URL}/spending/monthly_transactions/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } }),
+            fetch(`${API_BASE_URL}/spending/total_expenses_amount/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } }),
+            fetch(`${API_BASE_URL}/spending/monthly_saving_amount/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } }),
           ]);
 
           return { txResp, expenseResp, savingResp };
@@ -434,7 +434,7 @@ export default function Dashboard() {
 
       const previousExpenseFetches = await Promise.all(
         previousPeriodMonths.map(async ({ month: m, year: y }) =>
-          fetch(`/api/spending/total_expenses_amount/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } })
+          fetch(`${API_BASE_URL}/spending/total_expenses_amount/?month=${m}&year=${y}${accountQuery}`, { headers: { ...authHeaders() } })
         )
       );
 
@@ -661,12 +661,12 @@ export default function Dashboard() {
               <TransactionList items={visibleTransactions} />
             </div>
           </div>
-          
-          <div className="db-side">
-            <UpcomingDeadlines />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+
+	          <div className="db-side">
+	            <UpcomingDeadlines />
+	          </div>
+	        </div>
+	      </div>
+	    </div>
+	  );
 }
