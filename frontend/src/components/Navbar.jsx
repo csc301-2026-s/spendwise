@@ -190,10 +190,10 @@ export default function Navbar() {
 
           {/* Profile & Settings - inside same navbar box */}
           <div className="sw-nav-right">
-            <button type="button" className="sw-nav-icon-btn" title="Profile" aria-label="Profile">
+            <button type="button" className="sw-nav-icon-btn" title="Profile" aria-label="Profile" onClick={() => navigate("/profile")}>
               <PersonIcon />
             </button>
-            <button type="button" className="sw-nav-icon-btn" title="Settings" aria-label="Settings">
+            <button type="button" className="sw-nav-icon-btn" title="Settings" aria-label="Settings" onClick={() => navigate("/settings")}>
               <SettingsIcon />
             </button>
           </div>

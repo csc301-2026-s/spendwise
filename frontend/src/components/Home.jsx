@@ -917,31 +917,9 @@ export default function Dashboard() {
               <TransactionList items={visibleTransactions} />
             </div>
           </div>
-
+          
           <div className="db-side">
-            <div className="card">
-              <div className="card-title">
-                <h2>Upcoming Deadlines</h2>
-              </div>
-              {DEADLINES.length === 0 ? (
-                <div className="empty">No upcoming deadlines found.</div>
-              ) : (
-                <div className="list">
-                  {DEADLINES.map((d) => (
-                    <div className="row" key={d.id}>
-                      <div className="row-left">
-                        <div className={`deadlineBadge ${d.badgeClass}`}>{d.day}</div>
-                        <div style={{ minWidth: 0 }}>
-                          <div className="row-title">{d.title}</div>
-                          <div className="row-sub">{d.meta}</div>
-                        </div>
-                      </div>
-                      <div style={{ color: "var(--text-muted)", fontWeight: 900 }}>›</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <UpcomingDeadlines />
           </div>
         </div>
       </div>

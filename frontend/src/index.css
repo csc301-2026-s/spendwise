@@ -5,3 +5,20 @@ html, body, #root {
   padding: 0;
   background: #F4F7FB;
 }
+:root {
+  --uoft-blue: #002A5C;
+  --uoft-mid: #0047A0;
+  --uoft-light: #1E5FA8;
+  --uoft-sky: #D6E4F7;
+  --uoft-accent: #E8B53E;
+  --white: #FFFFFF;
+  --off-white: #F4F7FB;
+  --text-muted: #6B7A90;
+  --border: #D0DBE8;
+  --error: #C0392B;
+
+  font-family: 'Source Sans 3', sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
