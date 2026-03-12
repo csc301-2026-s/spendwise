@@ -34,18 +34,6 @@ const fetchWithAuth = async (url) => {
   return res;
 };
 
-const udStyles = `
-  .ud-card { background: var(--white, #fff); border: 2px solid var(--border, #D0DBE8); border-radius: 18px; padding: 1.25rem 1.5rem; }
-  .ud-card-title { font-size: 1.02rem; font-weight: 900; color: var(--uoft-blue, #002A5C); margin: 0 0 0.85rem 0; }
-  .ud-list { display: flex; flex-direction: column; gap: 0.95rem; }
-  .ud-row { display: flex; align-items: center; justify-content: space-between; gap: 0.9rem; padding: 1rem; border-radius: 16px; background: #F7FAFF; border: 2px solid rgba(208,219,232,0.75); }
-  .ud-row-left { display: flex; gap: 0.9rem; align-items: center; min-width: 0; }
-  .ud-badge { width: 52px; height: 52px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 900; flex-shrink: 0; border: 2px solid var(--border); background: #EAF0FF; color: var(--uoft-mid, #0047A0); font-size: 1rem; }
-  .ud-row-title { font-weight: 900; color: var(--uoft-blue); font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ud-row-sub { color: var(--text-muted, #6B7A90); font-size: 0.95rem; margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ud-empty { color: var(--text-muted); font-size: 0.95rem; text-align: center; padding: 1.25rem 0; }
-`;
-
 function formatDeadline(dateStr) {
   if (!dateStr) return null;
   return new Date(dateStr).toLocaleDateString("en-CA", {
@@ -60,14 +48,34 @@ function daysUntil(dateStr) {
   return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
 }
 
+/** End of school year placeholder for scholarships without a deadline (sorts to the back). */
+const NO_DEADLINE_PLACEHOLDER = "9999-12-31";
+
+/**
+ * Normalize saved scholarship item to flat shape. Handles API format { scholarship, status }.
+ */
+function normalizeItem(raw) {
+  const s = raw.scholarship || raw;
+  const status = raw.status || "saved";
+  return {
+    id: raw.id ?? s?.id,
+    scholarshipId: s?.id,
+    title: s?.title ?? raw.title,
+    deadline: s?.deadline ?? raw.deadline,
+    status,
+  };
+}
+
 /**
  * Reusable Upcoming Deadlines component.
- * Shows saved scholarships ordered by due date (soonest first).
+ * Shows saved scholarships (saved + in_progress only) ordered by due date (soonest first).
+ * Scholarships without a deadline are pushed to the very back.
+ * Submitted scholarships are excluded to make space for others.
  * - If `items` is provided, uses that list (e.g. from parent state).
  * - Otherwise fetches saved scholarships from the API.
  * Used on both Dashboard and Scholarships pages.
  */
-export default function UpcomingDeadlines({ items: itemsProp, maxItems = 8 }) {
+export default function UpcomingDeadlines({ items: itemsProp, maxItems = 5 }) {
   const [items, setItems] = useState(itemsProp ?? []);
   const [loading, setLoading] = useState(!itemsProp);
   const [error, setError] = useState(null);
@@ -101,14 +109,18 @@ export default function UpcomingDeadlines({ items: itemsProp, maxItems = 8 }) {
   }, [itemsProp]);
 
   const withDeadlines = items
-    .filter((s) => s.deadline)
-    .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+    .map(normalizeItem)
+    .filter((s) => s.status !== "submitted")
+    .map((s) => ({
+      ...s,
+      sortDeadline: s.deadline || NO_DEADLINE_PLACEHOLDER,
+    }))
+    .sort((a, b) => new Date(a.sortDeadline) - new Date(b.sortDeadline))
     .slice(0, maxItems);
 
   if (loading && withDeadlines.length === 0) {
     return (
       <>
-        <style>{udStyles}</style>
         <div className="ud-card">
           <h2 className="ud-card-title">Upcoming Deadlines</h2>
           <div className="ud-empty">Loading…</div>
@@ -120,10 +132,9 @@ export default function UpcomingDeadlines({ items: itemsProp, maxItems = 8 }) {
   if (error) {
     return (
       <>
-        <style>{udStyles}</style>
         <div className="ud-card">
           <h2 className="ud-card-title">Upcoming Deadlines</h2>
-          <div className="ud-empty" style={{ color: "#C0392B" }}>{error}</div>
+          <div className="ud-empty" style={{ color: "var(--sw-error)" }}>{error}</div>
         </div>
       </>
     );
@@ -131,7 +142,6 @@ export default function UpcomingDeadlines({ items: itemsProp, maxItems = 8 }) {
 
   return (
     <>
-      <style>{udStyles}</style>
       <div className="ud-card">
         <h2 className="ud-card-title">Upcoming Deadlines</h2>
         {withDeadlines.length === 0 ? (
@@ -139,23 +149,25 @@ export default function UpcomingDeadlines({ items: itemsProp, maxItems = 8 }) {
         ) : (
           <div className="ud-list">
             {withDeadlines.map((s) => {
+              const hasRealDeadline = !!s.deadline;
               const days = daysUntil(s.deadline);
-              const meta =
-                days !== null && days >= 0
+              const meta = hasRealDeadline
+                ? days !== null && days >= 0
                   ? `${formatDeadline(s.deadline)} – ${days} days left`
-                  : formatDeadline(s.deadline);
+                  : formatDeadline(s.deadline)
+                : "No deadline listed";
               return (
-                <div className="ud-row" key={s.id}>
+                <div className="ud-row" key={s.id ?? s.scholarshipId}>
                   <div className="ud-row-left">
                     <div className="ud-badge">
-                      {s.deadline ? new Date(s.deadline).getDate() : "—"}
+                      {hasRealDeadline ? new Date(s.deadline).getDate() : "—"}
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div className="ud-row-title">{s.title}</div>
                       <div className="ud-row-sub">{meta}</div>
                     </div>
                   </div>
-                  <div style={{ color: "var(--text-muted)", fontWeight: 900 }}>›</div>
+                  <div style={{ color: "var(--sw-text-muted)", fontWeight: 600 }}>›</div>
                 </div>
               );
             })}

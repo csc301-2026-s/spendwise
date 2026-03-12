@@ -295,7 +295,7 @@ Click the settings icon to:
 
 **Built interactive 3-step flow turning real savings data into personalized portfolio recommendations.**
 
-Investmetn Guidance
+Investment Guidance
 Click "Investments" tile to access goal simulator where you:
 
 - Review auto-filled savings baseline from spending analysis
