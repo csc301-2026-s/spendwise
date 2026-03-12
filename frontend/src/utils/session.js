@@ -67,7 +67,7 @@ async function refreshAccessToken() {
   return data.access;
 }
 
-async function fetchWithAuth(url, options = {}, accessTokenOverride) {
+export async function fetchWithAuth(url, options = {}, accessTokenOverride) {
   const token = accessTokenOverride || getToken();
   const doFetch = (accessToken) =>
     fetch(url, {

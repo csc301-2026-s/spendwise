@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
@@ -163,6 +163,8 @@ export default function Scholarships() {
   const [onlyMatched, setOnlyMatched]    = useState(false);
   const [viewSavedOnly, setViewSavedOnly] = useState(false);
   const [savedIds, setSavedIds]          = useState(new Set());
+  const [toast, setToast]                = useState(null);
+  const toastTimerRef = useRef(null);
 
   // filters
   const [q, setQ]                               = useState("");
@@ -171,6 +173,18 @@ export default function Scholarships() {
   const [filterAwardType, setFilterAwardType]   = useState("");
 
   const PAGE_SIZE = 20;
+
+  const showToast = useCallback((message, tone = "success") => {
+    setToast({ message, tone });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2200);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const getAccessToken = () =>
     sessionStorage.getItem("userAccessToken") || sessionStorage.getItem("userToken");
@@ -231,7 +245,14 @@ export default function Scholarships() {
     if (!getAccessToken()) return;
     try {
       const res = await fetchWithAuth(`${API_REL}/scholarships/${id}/save/`, { method: "POST" });
-      if (res.ok) await fetchSavedScholarships();
+      if (res.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+      if (res.ok) {
+        await fetchSavedScholarships();
+        showToast("Your data is saved.", "success");
+      }
     } catch { /* ignore */ }
   };
 
@@ -239,7 +260,14 @@ export default function Scholarships() {
     if (!getAccessToken()) return;
     try {
       const res = await fetchWithAuth(`${API_REL}/scholarships/${id}/save/`, { method: "DELETE" });
-      if (res.ok) await fetchSavedScholarships();
+      if (res.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+      if (res.ok) {
+        await fetchSavedScholarships();
+        showToast("Removed from saved scholarships.", "success");
+      }
     } catch { /* ignore */ }
   };
 
@@ -463,6 +491,18 @@ export default function Scholarships() {
         createPortal(
           <div className="sc-sidebar">
             <UpcomingDeadlines items={savedScholarships} maxItems={5} />
+          </div>,
+          document.body
+        )}
+
+      {toast &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className={`sw-toast ${toast.tone || ""}`} role="status" aria-live="polite">
+            <div className="sw-toast-msg">{toast.message}</div>
+            <button className="sw-toast-close" onClick={() => setToast(null)} aria-label="Close">
+              ×
+            </button>
           </div>,
           document.body
         )}

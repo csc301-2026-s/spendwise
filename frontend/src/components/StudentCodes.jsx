@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+import { API_BASE_URL, clearSession, fetchWithAuth } from "../utils/session";
 
 
 function normalizeCode(value) {
@@ -10,29 +11,60 @@ function normalizeCode(value) {
 }
 
 async function fetchJSON(url) {
-  const token = sessionStorage.getItem("userToken");
-  const res = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  let payload = {};
+  let res;
   try {
-    payload = await res.json();
-  } catch {
-    payload = {};
+    res = await fetchWithAuth(url, { headers: { Accept: "application/json" } });
+  } catch (e) {
+    throw new Error(e?.message || "Network error");
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  let payload = null;
+
+  if (res.status !== 204) {
+    if (contentType.includes("application/json")) {
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
+    } else {
+      try {
+        payload = await res.text();
+      } catch {
+        payload = null;
+      }
+    }
   }
 
   if (!res.ok) {
-    throw new Error(payload.error || "Request failed");
+    if (res.status === 401) {
+      clearSession();
+      const err = new Error("Session expired. Please log in again.");
+      err.code = "SESSION_EXPIRED";
+      err.status = 401;
+      throw err;
+    }
+
+    const message =
+      payload && typeof payload === "object"
+        ? payload.error || payload.detail || payload.message
+        : typeof payload === "string" && payload.trim()
+          ? payload.trim()
+          : `${res.status} ${res.statusText || "Request failed"}`;
+
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
   }
 
-  return payload;
+  return payload && typeof payload === "object" ? payload : {};
 }
 
 export default function StudentCodes() {
   const navigate = useNavigate();
 
-  const [page, setPage] = useState(2);
+  const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [mode, setMode] = useState("all");
   const [spcPlusOnly, setSpcPlusOnly] = useState("all");
@@ -47,13 +79,20 @@ export default function StudentCodes() {
     setLoading(true);
     setError("");
 
-    fetchJSON(`/api/student-codes/spc/?page=${page}&page_size=24`)
+    fetchJSON(`${API_BASE_URL}/student-codes/spc/?page=${page}&page_size=24`)
       .then((json) => {
         if (!alive) return;
         setDeals(json.deals || []);
         setMeta({ count: json.count || 0, total_count: json.total_count || 0 });
       })
-      .catch((e) => alive && setError(e.message))
+      .catch((e) => {
+        if (!alive) return;
+        if (e?.status === 401 || e?.code === "SESSION_EXPIRED") {
+          navigate("/login", { replace: true });
+          return;
+        }
+        setError(e?.message || "Request failed");
+      })
       .finally(() => alive && setLoading(false));
 
     return () => {
