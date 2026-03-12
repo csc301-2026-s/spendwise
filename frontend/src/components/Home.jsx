@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlaidLink } from "react-plaid-link";
-import { useNavigate } from "react-router-dom";
 import { API_BASE_URL, authHeaders, fetchProfile } from "../utils/session";
 import Navbar from "./Navbar";
 import UpcomingDeadlines from "./UpcomingDeadlines";
@@ -295,10 +294,6 @@ const styles = `
 
 const API = "/api";
 const token = () => sessionStorage.getItem("userAccessToken") || sessionStorage.getItem("userToken");
-const authHeaders = () => {
-  const t = token();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-};
 const refreshAccessToken = async () => {
   const refresh = sessionStorage.getItem("userRefreshToken");
   if (!refresh) return null;
