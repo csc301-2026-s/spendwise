@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { saveProfile } from "../utils/session";
+import { profileToScholarshipProfile, saveProfile } from "../utils/session";
 
 const PROFILE_KEY = "userProfile";
 const DEFAULT_PROFILE = {
@@ -24,13 +24,18 @@ export function loadProfileForEdit() {
   return loadScholarshipProfile();
 }
 
-export default function EditProfile({ profile: initialProfile, apiProfile, onSave }) {
-  const schol = initialProfile || loadScholarshipProfile();
-  const [form, setForm] = useState({
-    ...schol,
+function toEditableProfile(storedProfile = DEFAULT_PROFILE, apiProfile = null) {
+  const scholarshipProfile = profileToScholarshipProfile(apiProfile || storedProfile);
+  return {
+    ...scholarshipProfile,
     first_name: apiProfile?.first_name ?? "",
     last_name: apiProfile?.last_name ?? "",
-  });
+  };
+}
+
+export default function EditProfile({ profile: initialProfile, apiProfile, onSave }) {
+  const schol = initialProfile || loadScholarshipProfile();
+  const [form, setForm] = useState(() => toEditableProfile(schol, apiProfile));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
@@ -53,8 +58,7 @@ export default function EditProfile({ profile: initialProfile, apiProfile, onSav
     if (apiProfile) {
       setForm((f) => ({
         ...f,
-        first_name: apiProfile.first_name ?? "",
-        last_name: apiProfile.last_name ?? "",
+        ...toEditableProfile(f, apiProfile),
       }));
     }
   }, [apiProfile]);
@@ -73,17 +77,23 @@ export default function EditProfile({ profile: initialProfile, apiProfile, onSav
       };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(scholProfile));
 
-      if (apiProfile) {
-        await saveProfile({
-          ...apiProfile,
-          first_name: form.first_name || "",
-          last_name: form.last_name || "",
-          citizenship_status: form.citizenship,
-          campus: form.campus,
-          degree_type: form.degree_type,
-        });
-      }
-      onSave?.({ ...form, ...scholProfile });
+      const savedProfile = await saveProfile({
+        first_name: form.first_name || "",
+        last_name: form.last_name || "",
+        faculty: form.faculty || "",
+        major: form.major || "",
+        year: Number(form.year) || 1,
+        citizenship_status: form.citizenship,
+        campus: form.campus,
+        degree_type: form.degree_type,
+      });
+
+      onSave?.({
+        ...form,
+        ...profileToScholarshipProfile(savedProfile),
+        first_name: savedProfile.first_name ?? form.first_name,
+        last_name: savedProfile.last_name ?? form.last_name,
+      });
       showToast("Your data is saved.", "success");
     } catch (err) {
       setError(err.message || "Failed to save profile.");

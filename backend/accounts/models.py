@@ -20,6 +20,9 @@ class UserProfile(models.Model):
     ]
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
+    faculty = models.CharField(max_length=120, blank=True)
+    major = models.CharField(max_length=120, blank=True)
+    year = models.PositiveSmallIntegerField(default=1)
     citizenship_status = models.CharField(max_length=32, choices=CITIZENSHIP_CHOICES, blank=True)
     campus = models.CharField(max_length=32, choices=CAMPUS_CHOICES, blank=True)
     receives_scholarships_or_aid = models.BooleanField(default=False)

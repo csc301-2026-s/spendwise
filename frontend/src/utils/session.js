@@ -100,6 +100,9 @@ export function profileToScholarshipProfile(profile = {}) {
   return {
     ...DEFAULT_PROFILE,
     ...existing,
+    faculty: profile.faculty || existing.faculty || DEFAULT_PROFILE.faculty,
+    major: profile.major || existing.major || DEFAULT_PROFILE.major,
+    year: profile.year ?? existing.year ?? DEFAULT_PROFILE.year,
     degree_type: profile.degree_type || existing.degree_type || DEFAULT_PROFILE.degree_type,
     citizenship: profile.citizenship_status || existing.citizenship || DEFAULT_PROFILE.citizenship,
     campus: profile.campus || existing.campus || DEFAULT_PROFILE.campus,

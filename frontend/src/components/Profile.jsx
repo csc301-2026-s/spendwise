@@ -16,7 +16,17 @@ export default function Profile() {
   const handleSave = (newProfile) => {
     setProfile(newProfile);
     if (apiProfile) {
-      setApiProfile((p) => ({ ...p, first_name: newProfile.first_name, last_name: newProfile.last_name }));
+      setApiProfile((p) => ({
+        ...p,
+        first_name: newProfile.first_name,
+        last_name: newProfile.last_name,
+        faculty: newProfile.faculty,
+        major: newProfile.major,
+        year: newProfile.year,
+        citizenship_status: newProfile.citizenship,
+        campus: newProfile.campus,
+        degree_type: newProfile.degree_type,
+      }));
     }
   };
 

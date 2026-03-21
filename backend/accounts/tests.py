@@ -66,10 +66,18 @@ class UserProfileAPITest(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["email"], "profile@example.com")
+        self.assertEqual(response.data["faculty"], "")
+        self.assertEqual(response.data["major"], "")
+        self.assertEqual(response.data["year"], 1)
         self.assertFalse(response.data["onboarding_completed"])
 
     def test_put_profile_marks_onboarding_complete(self):
         payload = {
+            "first_name": "Jane",
+            "last_name": "Student",
+            "faculty": "Engineering",
+            "major": "Computer Engineering",
+            "year": 3,
             "citizenship_status": "Domestic",
             "campus": "St.George",
             "receives_scholarships_or_aid": True,
@@ -82,7 +90,23 @@ class UserProfileAPITest(APITestCase):
         }
         response = self.client.put(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["first_name"], "Jane")
+        self.assertEqual(response.data["last_name"], "Student")
+        self.assertEqual(response.data["faculty"], "Engineering")
+        self.assertEqual(response.data["major"], "Computer Engineering")
+        self.assertEqual(response.data["year"], 3)
         self.assertTrue(response.data["onboarding_completed"])
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["first_name"], "Jane")
+        self.assertEqual(response.data["last_name"], "Student")
+        self.assertEqual(response.data["faculty"], "Engineering")
+        self.assertEqual(response.data["major"], "Computer Engineering")
+        self.assertEqual(response.data["year"], 3)
+        self.assertEqual(response.data["campus"], "St.George")
+        self.assertEqual(response.data["degree_type"], "Undergrad")
+        self.assertEqual(response.data["total_earnings"], "22000.00")
 
     def test_requires_aid_amount_when_receiving_aid(self):
         payload = {
