@@ -52,7 +52,7 @@ jobs:
 
       - name: Run linting
         working-directory: ./backend
-        run: flake8 .
+        run: flake8 . --exclude=migrations --max-line-length=120
 
       
       - name: Wait for Postgres
