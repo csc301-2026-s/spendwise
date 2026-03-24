@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { fetchProfile } from "../utils/session";
+import { buildFinancialSnapshot, coverageAmount, coveragePercent, scholarshipAwardAmount } from "../utils/financialSnapshot";
 import Navbar from "./Navbar";
 import UpcomingDeadlines from "./UpcomingDeadlines";
 
@@ -68,10 +70,12 @@ function formatDeadline(dateStr) {
 const STATUS_LABELS = { saved: "Saved", in_progress: "In Progress", submitted: "Submitted" };
 
 // ── Sub-components ──
-function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status }) {
+function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status, deficit }) {
   const amt = formatAmount(s);
   const days = daysUntil(s.deadline);
   const isUrgent = days !== null && days <= 14;
+  const coveredAmount = coverageAmount(deficit, scholarshipAwardAmount(s));
+  const coveredPercent = coveragePercent(deficit, coveredAmount);
 
   const handleBookmarkClick = () => {
     if (isSaved) onUnsave?.(s.id);
@@ -146,6 +150,18 @@ function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status 
           )}
         </div>
       )}
+
+      {deficit > 0 && coveredAmount > 0 && (
+        <div className="sc-score-bar" style={{ marginTop: "0.8rem" }}>
+          <span className="sc-score-label">Can cover ${coveredAmount.toLocaleString()} of your deficit</span>
+          <div className="sc-score-track">
+            <div className="sc-score-fill" style={{ width: `${coveredPercent}%` }} />
+          </div>
+          <span style={{ fontSize: "0.72rem", color: "var(--sw-text-muted)" }}>
+            Estimated coverage: {coveredPercent}% of your current monthly deficit
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -165,6 +181,7 @@ export default function Scholarships() {
   const [savedIds, setSavedIds]          = useState(new Set());
   const [toast, setToast]                = useState(null);
   const toastTimerRef = useRef(null);
+  const financialSnapshot = useMemo(() => buildFinancialSnapshot(profile), [profile]);
 
   // filters
   const [q, setQ]                               = useState("");
@@ -239,6 +256,13 @@ export default function Scholarships() {
   useEffect(() => {
     fetchSavedScholarships();
   }, [fetchSavedScholarships]);
+
+  useEffect(() => {
+    if (!getAccessToken()) return;
+    fetchProfile()
+      .then((nextProfile) => setProfile((current) => ({ ...current, ...nextProfile })))
+      .catch(() => {});
+  }, []);
 
   // ── Save / Unsave ──
   const handleSave = async (id) => {
@@ -359,6 +383,7 @@ export default function Scholarships() {
                   ["Degree",   profile.degree_type],
                   ["Status",   profile.citizenship],
                   ["Campus",   profile.campus],
+                  ["Deficit",  financialSnapshot.deficit > 0 ? `$${financialSnapshot.deficit.toLocaleString()}` : "No deficit"],
                 ].map(([label, value]) => (
                   <div className="sc-profile-field" key={label}>
                     <div className="sc-profile-field-label">{label}</div>
@@ -462,6 +487,7 @@ export default function Scholarships() {
                   s={s}
                   score={s._score}
                   reasons={s._reasons}
+                  deficit={financialSnapshot.deficit}
                   isSaved={savedIds.has(s.id)}
                   status={savedStatusMap[s.id]}
                   onSave={handleSave}
