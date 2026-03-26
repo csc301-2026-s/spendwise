@@ -1,9 +1,14 @@
 
-# Create your views here.
 import requests
-from rest_framework.permissions import AllowAny
+from django.db.models import Q
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from transactions.models import Transaction
+
+from .models import Codes
+from .services import score_code_for_transactions, serialize_code
 
 SPC_OFFERS_URL = "https://offers-and-partners-7ada7hxd2a-uc.a.run.app/v5/offers/summary"
 SPC_IMAGE_BASE = "https://storage.spccard.ca/"
@@ -82,5 +87,88 @@ class SPCDealsAPI(APIView):
                 "total_count": payload.get("total_count", len(normalized)),
                 "count": len(normalized),
                 "deals": normalized,
+            }
+        )
+
+
+class TrendingCodesAPI(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        top_codes = list(Codes.objects.order_by("-popularity_score", "source_rank", "company")[:10])
+        return Response(
+            {
+                "count": len(top_codes),
+                "deals": [serialize_code(code) for code in top_codes],
+            }
+        )
+
+
+class AllCodesAPI(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        queryset = Codes.objects.all().order_by("-popularity_score", "source_rank", "company")
+
+        source = (request.query_params.get("source") or "").strip()
+        if source:
+            queryset = queryset.filter(source=source)
+
+        channel = (request.query_params.get("channel") or "").strip()
+        if channel == "online":
+            queryset = queryset.filter(online=True)
+        elif channel == "instore":
+            queryset = queryset.filter(in_store=True)
+        elif channel == "both":
+            queryset = queryset.filter(online=True, in_store=True)
+
+        membership = (request.query_params.get("membership") or "").strip()
+        if membership == "spc_plus":
+            queryset = queryset.filter(is_spc_plus=True)
+        elif membership == "standard":
+            queryset = queryset.filter(is_spc_plus=False)
+
+        query = (request.query_params.get("q") or "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(company__icontains=query)
+                | Q(title__icontains=query)
+                | Q(desc__icontains=query)
+                | Q(category__icontains=query)
+                | Q(code__icontains=query)
+                | Q(in_store_code__icontains=query)
+            )
+
+        return Response(
+            {
+                "count": queryset.count(),
+                "deals": [serialize_code(code) for code in queryset],
+            }
+        )
+
+
+class RecommendedCodesAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        transactions = list(
+            Transaction.objects.filter(user=request.user).order_by("-date", "-created_at")[:250]
+        )
+
+        scored = []
+        for code in Codes.objects.all():
+            relevance = score_code_for_transactions(code, transactions)
+            if relevance > 0:
+                scored.append((relevance, code))
+
+        scored.sort(
+            key=lambda item: (item[0], item[1].popularity_score, -item[1].source_rank),
+            reverse=True,
+        )
+
+        return Response(
+            {
+                "count": len(scored),
+                "deals": [serialize_code(code, relevance_score=score) for score, code in scored],
             }
         )

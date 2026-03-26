@@ -3,6 +3,9 @@ from unittest.mock import Mock, patch
 from django.test import TestCase
 import requests
 
+from student_codes.models import Codes
+
+
 class SPCDealsAPITests(TestCase):
     @patch("student_codes.views.requests.get")
     def test_returns_normalized_deals(self, mock_get):
@@ -87,3 +90,108 @@ class SPCDealsAPITests(TestCase):
         res = self.client.get("/api/student-codes/spc/")
         self.assertEqual(res.status_code, 502)
 
+
+class TrendingCodesAPITests(TestCase):
+    def test_returns_top_10_codes_by_popularity(self):
+        for index in range(12):
+            Codes.objects.create(
+                source=Codes.SOURCE_SPC,
+                external_id=f"offer-{index}",
+                company=f"Company {index}",
+                title=f"Offer {index}",
+                category="Food",
+                popularity_score=index,
+                source_rank=index,
+            )
+
+        res = self.client.get("/api/student-codes/trending/")
+        self.assertEqual(res.status_code, 200)
+
+        data = res.json()
+        self.assertEqual(data["count"], 10)
+        self.assertEqual(len(data["deals"]), 10)
+        self.assertEqual(data["deals"][0]["partner"], "Company 11")
+        self.assertEqual(data["deals"][-1]["partner"], "Company 2")
+
+    def test_uses_source_rank_as_tiebreaker(self):
+        Codes.objects.create(
+            source=Codes.SOURCE_SPC,
+            external_id="offer-a",
+            company="Later Rank",
+            title="Offer A",
+            popularity_score=100,
+            source_rank=5,
+        )
+        Codes.objects.create(
+            source=Codes.SOURCE_UNIDAYS,
+            external_id="offer-b",
+            company="Earlier Rank",
+            title="Offer B",
+            popularity_score=100,
+            source_rank=1,
+        )
+
+        res = self.client.get("/api/student-codes/trending/")
+        self.assertEqual(res.status_code, 200)
+
+        data = res.json()
+        self.assertEqual(data["deals"][0]["partner"], "Earlier Rank")
+
+
+class AllCodesAPITests(TestCase):
+    def setUp(self):
+        Codes.objects.create(
+            source=Codes.SOURCE_SPC,
+            external_id="spc-1",
+            company="Best Buy",
+            title="Laptop discount",
+            desc="Save on laptops",
+            category="Tech",
+            code="LAPTOP10",
+            online=True,
+            in_store=False,
+            is_spc_plus=False,
+            popularity_score=10,
+            source_rank=1,
+        )
+        Codes.objects.create(
+            source=Codes.SOURCE_UNIDAYS,
+            external_id="uni-1",
+            company="Apple",
+            title="MacBook savings",
+            desc="Student laptop deal",
+            category="Electronics",
+            code="",
+            online=True,
+            in_store=True,
+            is_spc_plus=False,
+            popularity_score=20,
+            source_rank=2,
+        )
+        Codes.objects.create(
+            source=Codes.SOURCE_STUDENT_BEANS,
+            external_id="sb-1",
+            company="Nike",
+            title="Shoes sale",
+            desc="Running shoes",
+            category="Fashion",
+            code="RUNFAST",
+            online=False,
+            in_store=True,
+            is_spc_plus=False,
+            popularity_score=5,
+            source_rank=3,
+        )
+
+    def test_returns_all_codes(self):
+        res = self.client.get("/api/student-codes/all/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["count"], 3)
+
+    def test_filters_by_search_source_and_channel(self):
+        res = self.client.get("/api/student-codes/all/?q=laptop&source=spc&channel=online")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["count"], 1)
+        self.assertEqual(data["deals"][0]["partner"], "Best Buy")
