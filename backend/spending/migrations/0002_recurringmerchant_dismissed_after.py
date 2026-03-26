@@ -12,11 +12,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="recurringmerchant",
-            name="dismissed_until",
-            field=models.DateTimeField(blank=True, db_index=True, null=True),
-        ),
-        migrations.AddField(
-            model_name="recurringmerchant",
             name="dismissed_after",
             field=models.DateField(blank=True, db_index=True, null=True),
         ),
