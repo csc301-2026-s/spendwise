@@ -101,7 +101,7 @@ function scoreIntent(deal, intent) {
     .map((value) => String(value || "").toLowerCase())
     .join(" ");
 
-  if (fields.includes(query)) return 10;
+  const exactPhraseMatch = fields.includes(query);
   const tokens = query.split(/\s+/).filter(Boolean);
   const expandedTokens = new Set(tokens);
   tokens.forEach((token) => {
@@ -109,9 +109,13 @@ function scoreIntent(deal, intent) {
   });
 
   let score = 0;
+  if (exactPhraseMatch) {
+    score += 12;
+  }
+
   expandedTokens.forEach((token) => {
     if (fields.includes(token)) {
-      score += token === query ? 10 : 3;
+      score += token === query ? 8 : 3;
     }
   });
 
@@ -231,7 +235,7 @@ export default function StudentCodes() {
       }));
 
     const intentFiltered = intent.trim()
-      ? filtered.filter((deal) => deal.intentScore > 0)
+      ? filtered.filter((deal) => deal.intentScore >= 8)
       : filtered;
 
     if (intent.trim()) {
@@ -244,7 +248,7 @@ export default function StudentCodes() {
       intentFiltered.sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0) || b.popularity_score - a.popularity_score);
     }
 
-    return intentFiltered;
+    return intent.trim() ? intentFiltered.slice(0, 10) : intentFiltered;
   }, [baseDeals, categoryFilter, intent, mode, search, sortBy, sourceFilter, spcPlusOnly]);
 
   const onCopy = async (dealId, code) => {
