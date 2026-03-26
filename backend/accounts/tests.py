@@ -1,54 +1,114 @@
-from django.test import TestCase
-from rest_framework import status 
-from rest_framework.test import APITestCase 
+from datetime import timedelta
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from .models import PendingRegistration
+from .services import hash_verification_code
 
 User = get_user_model()
 
+
 class RegistrationAPITest(APITestCase):
     def setUp(self):
-        self.url = reverse('register')
+        self.register_url = reverse("register")
+        self.verify_url = reverse("register_verify")
         self.valid_payload = {
-            "first_name": "jane",
-            "last_name": "doe",
-            "username": "testuser",
-            "email": "testuser@example.com",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "email": "jane.doe@mail.utoronto.ca",
             "password": "StrongPass123!",
-            "password2": "StrongPass123!"
-        }
-        self.invalid_payload_password_mismatch = {
-            "first_name": "john",
-            "last_name": "doe",
-            "username": "testuser2",
-            "email": "testuser2@example.com",
-            "password": "StrongPass123!",
-            "password2": "WrongPass123!"
-        }
-        self.invalid_payload_missing_email = {
-            "first_name": "june",
-            "last_name": "bug",
-            "username": "testuser3",
-            "password": "StrongPass123!",
-            "password2": "StrongPass123!"
+            "password2": "StrongPass123!",
         }
 
-    def test_registration_success(self):
-        response = self.client.post(self.url, self.valid_payload, format='json')
+    @patch("accounts.serializers.send_registration_verification_email")
+    @patch("accounts.serializers.generate_verification_code", return_value="654321")
+    def test_registration_request_sends_code_and_does_not_create_user(self, _generate_code, mock_send_email):
+        response = self.client.post(self.register_url, self.valid_payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["message"], "Verification code sent to your UofT email.")
+        self.assertFalse(User.objects.filter(email=self.valid_payload["email"]).exists())
+
+        pending_registration = PendingRegistration.objects.get(email=self.valid_payload["email"])
+        self.assertEqual(pending_registration.first_name, "Jane")
+        self.assertEqual(pending_registration.verification_code_hash, hash_verification_code("654321"))
+        mock_send_email.assert_called_once_with(
+            email="jane.doe@mail.utoronto.ca",
+            code="654321",
+            first_name="Jane",
+        )
+
+    def test_registration_rejects_non_uoft_email(self):
+        payload = {**self.valid_payload, "email": "jane@gmail.com"}
+        response = self.client.post(self.register_url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+
+    @patch("accounts.serializers.send_registration_verification_email")
+    @patch("accounts.serializers.generate_verification_code", return_value="654321")
+    def test_verification_creates_user_and_returns_tokens(self, _generate_code, _mock_send_email):
+        self.client.post(self.register_url, self.valid_payload, format="json")
+
+        response = self.client.post(
+            self.verify_url,
+            {"email": self.valid_payload["email"], "code": "654321"},
+            format="json",
+        )
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['message'], "User registered successfully")
-        self.assertTrue(User.objects.filter(username="testuser@example.com").exists())
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertTrue(User.objects.filter(email=self.valid_payload["email"]).exists())
+        self.assertFalse(PendingRegistration.objects.filter(email=self.valid_payload["email"]).exists())
 
-    def test_registration_password_mismatch(self):
-        response = self.client.post(self.url, self.invalid_payload_password_mismatch, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('password', response.data)
+    def test_verification_returns_tokens_for_already_created_user_when_password_matches(self):
+        existing_user = User.objects.create_user(
+            username=self.valid_payload["email"],
+            email=self.valid_payload["email"],
+            first_name=self.valid_payload["first_name"],
+            last_name=self.valid_payload["last_name"],
+            password=self.valid_payload["password"],
+        )
 
-    def test_registration_missing_email(self):
-        response = self.client.post(self.url, self.invalid_payload_missing_email, format='json')
+        response = self.client.post(
+            self.verify_url,
+            {
+                "email": self.valid_payload["email"],
+                "code": "654321",
+                "password": self.valid_payload["password"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertEqual(User.objects.filter(email=self.valid_payload["email"]).count(), 1)
+        self.assertEqual(existing_user.email, self.valid_payload["email"])
+
+    @patch("accounts.serializers.send_registration_verification_email")
+    @patch("accounts.serializers.generate_verification_code", return_value="654321")
+    def test_verification_rejects_expired_code(self, _generate_code, _mock_send_email):
+        self.client.post(self.register_url, self.valid_payload, format="json")
+        pending_registration = PendingRegistration.objects.get(email=self.valid_payload["email"])
+        pending_registration.code_expires_at = timezone.now() - timedelta(minutes=1)
+        pending_registration.save(update_fields=["code_expires_at"])
+
+        response = self.client.post(
+            self.verify_url,
+            {"email": self.valid_payload["email"], "code": "654321"},
+            format="json",
+        )
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('email', response.data)
+        self.assertIn("code", response.data)
 
 
 class UserProfileAPITest(APITestCase):
