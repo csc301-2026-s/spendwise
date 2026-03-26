@@ -1,5 +1,6 @@
 
 import requests
+from django.db.models import Q
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -99,6 +100,49 @@ class TrendingCodesAPI(APIView):
             {
                 "count": len(top_codes),
                 "deals": [serialize_code(code) for code in top_codes],
+            }
+        )
+
+
+class AllCodesAPI(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        queryset = Codes.objects.all().order_by("-popularity_score", "source_rank", "company")
+
+        source = (request.query_params.get("source") or "").strip()
+        if source:
+            queryset = queryset.filter(source=source)
+
+        channel = (request.query_params.get("channel") or "").strip()
+        if channel == "online":
+            queryset = queryset.filter(online=True)
+        elif channel == "instore":
+            queryset = queryset.filter(in_store=True)
+        elif channel == "both":
+            queryset = queryset.filter(online=True, in_store=True)
+
+        membership = (request.query_params.get("membership") or "").strip()
+        if membership == "spc_plus":
+            queryset = queryset.filter(is_spc_plus=True)
+        elif membership == "standard":
+            queryset = queryset.filter(is_spc_plus=False)
+
+        query = (request.query_params.get("q") or "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(company__icontains=query)
+                | Q(title__icontains=query)
+                | Q(desc__icontains=query)
+                | Q(category__icontains=query)
+                | Q(code__icontains=query)
+                | Q(in_store_code__icontains=query)
+            )
+
+        return Response(
+            {
+                "count": queryset.count(),
+                "deals": [serialize_code(code) for code in queryset],
             }
         )
 

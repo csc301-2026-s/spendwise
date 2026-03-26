@@ -136,3 +136,62 @@ class TrendingCodesAPITests(TestCase):
 
         data = res.json()
         self.assertEqual(data["deals"][0]["partner"], "Earlier Rank")
+
+
+class AllCodesAPITests(TestCase):
+    def setUp(self):
+        Codes.objects.create(
+            source=Codes.SOURCE_SPC,
+            external_id="spc-1",
+            company="Best Buy",
+            title="Laptop discount",
+            desc="Save on laptops",
+            category="Tech",
+            code="LAPTOP10",
+            online=True,
+            in_store=False,
+            is_spc_plus=False,
+            popularity_score=10,
+            source_rank=1,
+        )
+        Codes.objects.create(
+            source=Codes.SOURCE_UNIDAYS,
+            external_id="uni-1",
+            company="Apple",
+            title="MacBook savings",
+            desc="Student laptop deal",
+            category="Electronics",
+            code="",
+            online=True,
+            in_store=True,
+            is_spc_plus=False,
+            popularity_score=20,
+            source_rank=2,
+        )
+        Codes.objects.create(
+            source=Codes.SOURCE_STUDENT_BEANS,
+            external_id="sb-1",
+            company="Nike",
+            title="Shoes sale",
+            desc="Running shoes",
+            category="Fashion",
+            code="RUNFAST",
+            online=False,
+            in_store=True,
+            is_spc_plus=False,
+            popularity_score=5,
+            source_rank=3,
+        )
+
+    def test_returns_all_codes(self):
+        res = self.client.get("/api/student-codes/all/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["count"], 3)
+
+    def test_filters_by_search_source_and_channel(self):
+        res = self.client.get("/api/student-codes/all/?q=laptop&source=spc&channel=online")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["count"], 1)
+        self.assertEqual(data["deals"][0]["partner"], "Best Buy")
