@@ -642,12 +642,20 @@ export default function Dashboard() {
                 subtitle="Apply a discount code"
                 toneClass="tCodes"
                 onClick={() => navigate("/student-codes")}
-              /><QuickTile
+                />
+             <QuickTile
                 icon={<InvestmentsIcon />}
-                title="Your Investments"
-                subtitle="Your Monthly Investments"
+                title="Goal Planner"
+                subtitle="Plan & track your goals"
                 toneClass="tInvestment"
                 onClick={() => navigate("/investing")}
+              />
+              <QuickTile
+                icon={<InvestmentsIcon />}
+                title="Portfolio Builder"
+                subtitle="Build your investment portfolio"
+                toneClass="tInvestment"
+                onClick={() => navigate("/investing/builder")}
               />
 
             </div>
