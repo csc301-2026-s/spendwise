@@ -17,6 +17,11 @@ const DEFAULT_PROFILE = {
   total_expenses: 0,
   parental_support: 0,
   scholarship_aid_amount: 0,
+  receives_scholarships_or_aid: false,
+  estimated_annual_school_cost: null,
+  net_annual_cost_after_aid: null,
+  gpa: null,
+  resume_summary: "",
 };
 
 export function getToken() {
@@ -101,13 +106,17 @@ export function profileToScholarshipProfile(profile = {}) {
   } catch {
     // ignore
   }
+  const deg = profile.degree_type || existing.degree_type || DEFAULT_PROFILE.degree_type;
+  const student_level =
+    profile.student_level || (deg === "Postgrad" ? "grad" : "undergrad");
+
   return {
     ...DEFAULT_PROFILE,
     ...existing,
     faculty: profile.faculty || existing.faculty || DEFAULT_PROFILE.faculty,
     major: profile.major || existing.major || DEFAULT_PROFILE.major,
     year: profile.year ?? existing.year ?? DEFAULT_PROFILE.year,
-    degree_type: profile.degree_type || existing.degree_type || DEFAULT_PROFILE.degree_type,
+    degree_type: deg,
     citizenship: profile.citizenship_status || existing.citizenship || DEFAULT_PROFILE.citizenship,
     campus: profile.campus || existing.campus || DEFAULT_PROFILE.campus,
     total_earnings: profile.total_earnings ?? existing.total_earnings ?? DEFAULT_PROFILE.total_earnings,
@@ -115,6 +124,15 @@ export function profileToScholarshipProfile(profile = {}) {
     parental_support: profile.parental_support ?? existing.parental_support ?? DEFAULT_PROFILE.parental_support,
     scholarship_aid_amount:
       profile.scholarship_aid_amount ?? existing.scholarship_aid_amount ?? DEFAULT_PROFILE.scholarship_aid_amount,
+    receives_scholarships_or_aid:
+      profile.receives_scholarships_or_aid ?? existing.receives_scholarships_or_aid ?? DEFAULT_PROFILE.receives_scholarships_or_aid,
+    estimated_annual_school_cost:
+      profile.estimated_annual_school_cost ?? existing.estimated_annual_school_cost ?? DEFAULT_PROFILE.estimated_annual_school_cost,
+    net_annual_cost_after_aid:
+      profile.net_annual_cost_after_aid ?? existing.net_annual_cost_after_aid ?? DEFAULT_PROFILE.net_annual_cost_after_aid,
+    gpa: profile.gpa ?? existing.gpa ?? DEFAULT_PROFILE.gpa,
+    resume_summary: profile.resume_summary ?? existing.resume_summary ?? DEFAULT_PROFILE.resume_summary,
+    student_level,
   };
 }
 
