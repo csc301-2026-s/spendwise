@@ -123,6 +123,45 @@ export function hydrateProfile(profile = {}) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profileToScholarshipProfile(profile)));
 }
 
+export async function hydrateSessionFromTokens({ access, refresh } = {}) {
+  setTokens({ access, refresh });
+  setOnboardingComplete(false);
+
+  let destination = "/onboarding";
+  try {
+    const profile = await fetchProfile(access);
+    setOnboardingComplete(Boolean(profile.onboarding_completed));
+    destination = profile.onboarding_completed ? "/home" : "/onboarding";
+  } catch {
+    // Keep successful auth moving even if profile hydration fails.
+  }
+
+  return destination;
+}
+
+async function readResponseBody(res) {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function extractApiMessage(data, fallback) {
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  if (typeof data === "object") {
+    const firstKey = Object.keys(data)[0];
+    if (!firstKey) return fallback;
+    const value = data[firstKey];
+    return Array.isArray(value) ? value[0] : value;
+  }
+  return fallback;
+}
+
 export async function fetchProfile(token = getToken()) {
   const res = await fetchWithAuth(`${API_BASE_URL}/profile/`, {
     headers: { "Content-Type": "application/json" },
@@ -133,11 +172,16 @@ export async function fetchProfile(token = getToken()) {
     throw new Error("Session expired. Please log in again.");
   }
 
+  const data = await readResponseBody(res);
+
   if (!res.ok) {
+    throw new Error(extractApiMessage(data, "Unable to load your profile."));
+  }
+
+  if (!data || typeof data !== "object") {
     throw new Error("Unable to load your profile.");
   }
 
-  const data = await res.json();
   hydrateProfile(data);
   return data;
 }
@@ -156,13 +200,13 @@ export async function saveProfile(payload, token = getToken()) {
     throw new Error("Session expired. Please log in again.");
   }
 
-  const data = await res.json();
+  const data = await readResponseBody(res);
   if (!res.ok) {
-    const firstKey = typeof data === "object" ? Object.keys(data)[0] : null;
-    const message = firstKey
-      ? Array.isArray(data[firstKey]) ? data[firstKey][0] : data[firstKey]
-      : "Unable to save your onboarding details.";
-    throw new Error(message);
+    throw new Error(extractApiMessage(data, "Unable to save your onboarding details."));
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new Error("Unable to save your onboarding details.");
   }
 
   hydrateProfile(data);
