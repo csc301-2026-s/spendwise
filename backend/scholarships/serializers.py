@@ -12,6 +12,8 @@ class ScholarshipListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "source",
+            "student_level",
+            "is_active",
             "title",
             "offered_by",
             "url",
@@ -25,6 +27,7 @@ class ScholarshipListSerializer(serializers.ModelSerializer):
             "amount_max",
             "amount",
             "deadline",
+            "deadline_is_estimated",
             "created_at",
             "updated_at",
         ]
@@ -94,6 +97,7 @@ class MatchRequestSerializer(serializers.Serializer):
     degree_type = serializers.CharField(required=False, allow_blank=True)
     citizenship = serializers.CharField(required=False, allow_blank=True)
     campus = serializers.CharField(required=False, allow_blank=True)
+    student_level = serializers.CharField(required=False, allow_blank=True)
 
 
 class SavedScholarshipSerializer(serializers.ModelSerializer):

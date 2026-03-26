@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Scholarship, SavedScholarship, SavedScholarshipStatus
+from .models import Scholarship, SavedScholarship, SavedScholarshipStatus, StudentLevel
 from .serializers import (
     ScholarshipListSerializer,
     ScholarshipDetailSerializer,
@@ -48,7 +48,13 @@ class ScholarshipsListAPI(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        qs = Scholarship.objects.all()
+        qs = Scholarship.objects.filter(is_active=True)
+
+        sl = (request.query_params.get("student_level") or "").strip().lower()
+        if sl == "undergrad":
+            qs = qs.filter(student_level=StudentLevel.UNDERGRAD)
+        elif sl in ("grad", "graduate"):
+            qs = qs.filter(student_level=StudentLevel.GRAD)
 
         # ---- search (q) ----
         q = request.query_params.get("q")
@@ -141,7 +147,7 @@ class ScholarshipDetailAPI(APIView):
 
     def get(self, request, pk):
         try:
-            s = Scholarship.objects.get(pk=pk)
+            s = Scholarship.objects.get(pk=pk, is_active=True)
         except Scholarship.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -152,25 +158,31 @@ class ScholarshipsMetaAPI(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        base = Scholarship.objects.filter(is_active=True)
+
         award_types = (
-            Scholarship.objects.exclude(award_type__isnull=True)
+            base.exclude(award_type__isnull=True)
             .exclude(award_type__exact="")
             .values_list("award_type", flat=True)
             .distinct()
         )
 
         citizenship_vals = []
-        if Scholarship.objects.filter(open_to_domestic=True).exists():
+        if base.filter(open_to_domestic=True).exists():
             citizenship_vals.append("Domestic")
-        if Scholarship.objects.filter(open_to_international=True).exists():
+        if base.filter(open_to_international=True).exists():
             citizenship_vals.append("International")
 
         nature_vals = []
         for key, field in NATURE_FIELD_MAP.items():
-            if Scholarship.objects.filter(**{field: True}).exists():
+            if base.filter(**{field: True}).exists():
                 nature_vals.append(key)
 
         faculty_college_vals = []
+
+        level_vals = list(
+            base.values_list("student_level", flat=True).distinct().order_by("student_level")
+        )
 
         return Response(
             {
@@ -178,6 +190,7 @@ class ScholarshipsMetaAPI(APIView):
                 "citizenship": citizenship_vals,
                 "nature": nature_vals,
                 "faculty_college": faculty_college_vals,
+                "student_level": level_vals,
             }
         )
 
@@ -197,7 +210,13 @@ class ScholarshipsMatchAPI(APIView):
         campus = (p.get("campus") or "").strip()
         year = p.get("year", None)
 
-        qs = Scholarship.objects.all()
+        qs = Scholarship.objects.filter(is_active=True)
+
+        sl = (p.get("student_level") or "").strip().lower()
+        if sl == "undergrad":
+            qs = qs.filter(student_level=StudentLevel.UNDERGRAD)
+        elif sl in ("grad", "graduate"):
+            qs = qs.filter(student_level=StudentLevel.GRAD)
 
         if citizenship:
             c = citizenship.lower()
@@ -298,7 +317,7 @@ class SaveUnsaveScholarshipAPI(APIView):
 
     def post(self, request, pk):
         try:
-            scholarship = Scholarship.objects.get(pk=pk)
+            scholarship = Scholarship.objects.get(pk=pk, is_active=True)
         except Scholarship.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         _, created = SavedScholarship.objects.get_or_create(

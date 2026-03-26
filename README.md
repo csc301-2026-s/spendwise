@@ -362,6 +362,8 @@ git clone https://github.com/csc301-2026-s/spendwise.git
 cd spendwise
 git fetch --all
 git checkout -b dev origin/dev
+```
+
 ---
 
 ### 2)  Create a Local Virtual Environment
@@ -380,10 +382,10 @@ Activate the virtual environment:
 ```bash
 source venv/bin/activate
 ```
-Install the Dependencies
-```bash
+Install the dependencies:
 
-python -m pip install -r backend/requirements.txt
+```bash
+python3 -m pip install -r backend/requirements.txt
 ```
 Deactivate when done:
 
@@ -393,33 +395,55 @@ deactivate
 
 ---
 
-### 4) Start All Containers
+### 3) Start all containers, migrate, and (optional) load scholarships
 
-Build and start services:
+1. **Build images** (when dependencies or Dockerfiles change):
 
+   ```bash
+   docker compose build
+   ```
 
+   Use **`docker compose up -d --build`** to build and start in one step. The `-d` flag is for **`up`** (run detached), not for `build` — `docker compose build -d` is invalid.
 
-Run in background:
+2. **Start containers** in the background:
 
-```bash
+   ```bash
+   docker compose up -d
+   ```
 
-docker compose up -d --build
-```
+3. **Apply database migrations** (always run this inside the **backend** container so Django can reach Postgres):
 
-Run scholarship data ingestion (and apply migrations if needed):
+   ```bash
+   docker compose exec backend python manage.py migrate
+   ```
 
-```bash
-docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py ingest_awardexplorer
-```
+4. **Load scholarship data** from U of T Award Explorer (requires network; can take several minutes). Ingest **undergraduate** and **graduate** catalogs separately:
 
-If needed, run migrations again to ensure you have the latest update.
+   ```bash
+   docker compose exec backend python manage.py ingest_awardexplorer --level undergrad
+   docker compose exec backend python manage.py ingest_awardexplorer --level grad
+   ```
 
-Stop containers:
+   Optional: prune overdue saved-scholarship rows without a full ingest:
 
-```bash
-docker compose down
-```
+   ```bash
+   docker compose exec backend python manage.py scholarships_cleanup
+   ```
+
+5. **Stop containers** (keeps database data in the Docker volume):
+
+   ```bash
+   docker compose down
+   ```
+
+#### Running `manage.py` on your Mac vs inside Docker
+
+Compose sets **`POSTGRES_HOST=db`**, which is the **Postgres service name on the Docker network**. It only resolves **inside** containers (e.g. the `backend` container). If you run `python3 manage.py …` from your laptop in `backend/`, Django will try to connect to host `db` and fail with a DNS error.
+
+- **Recommended:** run Django commands through the backend container, as above (`docker compose exec backend python manage.py …`).
+- **If you use a local venv** on the host, point Django at the published port: set **`POSTGRES_HOST=127.0.0.1`**, **`POSTGRES_PORT=5433`**, and the same **`POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD`** as in `docker-compose.yml`, with **`docker compose up -d`** running so Postgres is listening.
+
+On macOS, use **`python3`** if the `python` command is not installed.
 
 ---
 
@@ -430,7 +454,7 @@ docker compose down
 |------------|--------------------------|------------------|----------------------------|
 | Frontend   | http://localhost:5174    | frontend:5174    | React/Vite Dev Server      |
 | Backend    | http://localhost:8000    | backend:8000     | Django REST API            |
-| Database   | localhost:5432           | db:5432          | PostgreSQL Instance        |
+| Database   | localhost:5433           | db:5432          | PostgreSQL (host maps 5433 → container 5432) |
 
 ---
 
@@ -493,6 +517,8 @@ This structure ensures accountability through Jira tracking, improves collaborat
 
   ```bash
   docker compose up --build
+  ```
+
 ---
 
 ## Coding Standards and Guidelines

@@ -10,6 +10,11 @@ class AwardType(models.TextChoices):
     GRADUATING = "graduating", "Graduating"
 
 
+class StudentLevel(models.TextChoices):
+    UNDERGRAD = "undergrad", "Undergraduate"
+    GRAD = "grad", "Graduate"
+
+
 class SavedScholarshipStatus(models.TextChoices):
     SAVED = "saved", "Saved / Planned"
     IN_PROGRESS = "in_progress", "In Progress"
@@ -20,6 +25,17 @@ class Scholarship(models.Model):
     # IDENTITY
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     source = models.CharField(max_length=100, default="UOFT_AWARD_EXPLORER")
+    student_level = models.CharField(
+        max_length=16,
+        choices=StudentLevel.choices,
+        default=StudentLevel.UNDERGRAD,
+        db_index=True,
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="False when no longer present in the last catalog ingest for this level.",
+    )
 
     # CORE INFO
     # default is null = False
@@ -57,6 +73,10 @@ class Scholarship(models.Model):
 
     # DATES
     deadline = models.DateField(null=True)
+    deadline_is_estimated = models.BooleanField(
+        default=False,
+        help_text="True when deadline was assumed (e.g. April 30) because the source had none.",
+    )
     last_seen_at = models.DateTimeField(default=timezone.now)
     #sets it once on creation and never touches it again
     created_at = models.DateTimeField(auto_now_add=True)
@@ -65,12 +85,18 @@ class Scholarship(models.Model):
 
 
     class Meta:
-        unique_together = [["title", "offered_by"]]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["title", "offered_by", "student_level"],
+                name="uniq_scholarship_title_offered_by_level",
+            ),
+        ]
         indexes = [
             models.Index(fields=["deadline"]),
             models.Index(fields=["award_type"]),
             models.Index(fields=["open_to_domestic"]),
             models.Index(fields=["open_to_international"]),
+            models.Index(fields=["student_level", "is_active"]),
         ]
 
     def __str__(self):
