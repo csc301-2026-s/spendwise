@@ -117,6 +117,12 @@ export default function Transactions() {
     return `${text.slice(0, 12)}...`;
   };
 
+  const tipKeyFor = (name) => {
+    const normalized = String(name || "").trim().toLowerCase();
+    const collapsed = normalized.split(/\s+/).join(" ");
+    return collapsed || "unknown";
+  };
+
   const bucketCategory = (raw) => {
     const c = String(raw || "").toLowerCase();
     if (!c) return "Other";
@@ -278,31 +284,29 @@ export default function Transactions() {
       return Number.isFinite(n) ? n : 0;
     };
 
-    const keyFor = (name) => {
-      const normalized = String(name || "").trim().toLowerCase();
-      return normalized || "unknown";
-    };
-
     const merged = new Map();
     for (const tips of payloads) {
       if (!Array.isArray(tips)) continue;
       for (const tip of tips) {
         const displayName = String(tip?.name || "Unknown").trim() || "Unknown";
-        const key = keyFor(displayName);
+        const key = tipKeyFor(displayName);
         const total = asNumber(tip?.total);
         const perSaving = asNumber(tip?.per_saving);
         const desc = tip?.desc ? String(tip.desc) : "";
+        const recurring = Boolean(tip?.recurring);
 
         const existing = merged.get(key) || {
           name: displayName,
           total: 0,
           per_saving: 0,
           desc: "",
+          recurring: false,
           _bestSaving: Number.NEGATIVE_INFINITY,
         };
 
         existing.total += total;
         existing.per_saving += perSaving;
+        existing.recurring = existing.recurring || recurring;
 
         if (desc && perSaving >= existing._bestSaving) {
           existing.desc = desc;
@@ -491,16 +495,102 @@ export default function Transactions() {
           <div className="tx-card">
             <div className="tx-card-h">
               <h3>Saving Tips</h3>
-              <span className="tx-chip">Based on merchants</span>
+              <span className="tx-chip">Approved tips count: {monthlySavingDesc.filter((t) => t.recurring).length}</span>
             </div>
             <div className="tx-card-b">
               <div className="tx-tips">
                 {monthlySavingDesc?.length ? (
-                  monthlySavingDesc.map((t) => (
+                  monthlySavingDesc
+                    .filter((t) => !t.recurring)
+                    .map((t) => (
                     <div className="tx-tip" key={t.name}>
-                      <div><strong>{t.name}</strong> - You spent ${formatMoney(t.total)}</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                        <div>
+                          <strong>{t.name}</strong> - You spent ${formatMoney(t.total)}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const selectedAccount = accountId || "";
+                              fetchWithAuth(`${API_BASE}/spending/set_recurring/`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  merchant_name: t.name,
+                                  account_id: selectedAccount,
+                                  is_recurring: true,
+                                }),
+                              })
+                                .then(async (res) => {
+                                  if (!res.ok) {
+                                    const text = await res.text();
+                                    throw new Error(text || "Failed to update recurring.");
+                                  }
+                                })
+                                  .then(async () => {
+                                    await Promise.all([fetchMonthlySavingDesc(), fetchMonthlySavingAmount()]);
+                                  })
+                                  .catch(() => setError("Could not update recurring setting. Please try again."));
+                            }}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 10,
+                              border: "1px solid rgba(255,255,255,0.25)",
+                              background: "rgba(72, 187, 120, 0.22)",
+                              color: "inherit",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                            title="Yes: approve this merchant as recurring."
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const selectedAccount = accountId || "";
+                              fetchWithAuth(`${API_BASE}/spending/set_recurring/`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  merchant_name: t.name,
+                                  account_id: selectedAccount,
+                                  is_recurring: false,
+                                  dismiss_for_days: 1,
+                                }),
+                              })
+                                .then(async (res) => {
+                                  if (!res.ok) {
+                                    const text = await res.text();
+                                    throw new Error(text || "Failed to update recurring.");
+                                  }
+                                })
+                                .then(async () => {
+                                  await Promise.all([fetchMonthlySavingDesc(), fetchMonthlySavingAmount()]);
+                                })
+                                .catch(() => setError("Could not update recurring setting. Please try again."));
+                            }}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 10,
+                              border: "1px solid rgba(255,255,255,0.25)",
+                              background: "rgba(255,255,255,0.08)",
+                              color: "inherit",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                            title="No: don't include this merchant in monthly spending."
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 6, color: "var(--sw-text-muted)", fontSize: "0.88rem", fontWeight: 600 }}>
+                        Is this a recurring transaction? Press <strong>Yes</strong> to include it in your monthly saving.
+                      </div>
                       <div className="tx-tip-sub">
-                        You could save about ${formatMoney(t.per_saving)} by taking this offer — <strong>"{t.desc}"</strong> — if you haven’t already.
+                        You could save about ${formatMoney(t.per_saving)} by taking this offer — <strong>"{t.desc}"</strong> — if you haven’t already. Visit the Student-Codes page for more info.
                       </div>
                     </div>
                   ))
