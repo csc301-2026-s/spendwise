@@ -25,6 +25,7 @@ export function buildFinancialSnapshot(profile = {}) {
 }
 
 export function scholarshipAwardAmount(scholarship = {}) {
+  // Prefer max over min; falls back to 0 if both are null (card won't render coverage)
   const rawAmount = scholarship.amount_max ?? scholarship.amount_min ?? 0;
   return toNumber(rawAmount);
 }
@@ -36,5 +37,5 @@ export function coverageAmount(deficit, amount) {
 export function coveragePercent(deficit, coveredAmount) {
   const safeDeficit = Math.max(toNumber(deficit), 0);
   if (!safeDeficit) return 0;
-  return Math.round((Math.max(toNumber(coveredAmount), 0) / safeDeficit) * 100);
+  return Math.min(Math.round((Math.max(toNumber(coveredAmount), 0) / safeDeficit) * 100), 100);
 }

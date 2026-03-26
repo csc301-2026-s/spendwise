@@ -261,7 +261,7 @@ export default function Scholarships() {
     if (!getAccessToken()) return;
     fetchProfile()
       .then((nextProfile) => setProfile((current) => ({ ...current, ...nextProfile })))
-      .catch(() => {});
+      .catch((err) => { console.error("Failed to fetch profile:", err); });
   }, []);
 
   // ── Save / Unsave ──
@@ -383,7 +383,7 @@ export default function Scholarships() {
                   ["Degree",   profile.degree_type],
                   ["Status",   profile.citizenship],
                   ["Campus",   profile.campus],
-                  ["Deficit",  financialSnapshot.deficit > 0 ? `$${financialSnapshot.deficit.toLocaleString()}` : "No deficit"],
+                  ["Deficit", financialSnapshot.deficit > 0 ? `$${financialSnapshot.deficit.toLocaleString()}` : "—"],
                 ].map(([label, value]) => (
                   <div className="sc-profile-field" key={label}>
                     <div className="sc-profile-field-label">{label}</div>

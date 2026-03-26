@@ -320,7 +320,7 @@ export default function Investing() {
                 <div className={`inv-statValue ${investmentCoverage > 0 ? "positive" : ""}`}>
                   ${money(investmentCoverage)}
                 </div>
-                <div className="inv-statLabel">Deficit Coverage</div>
+                <div className="inv-statLabel">Projected Gap Coverage</div>
               </div>
             </div>
 
