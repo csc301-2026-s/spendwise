@@ -1,9 +1,18 @@
 # Create your tests here.
 from unittest.mock import Mock, patch
+from types import SimpleNamespace
 from django.test import TestCase
 import requests
 
 from student_codes.models import Codes
+from student_codes.services import (
+    clean_code_value,
+    domain_tokens,
+    normalize_text,
+    score_code_against_transaction,
+    score_code_for_transactions,
+    serialize_code,
+)
 
 
 class SPCDealsAPITests(TestCase):
@@ -195,3 +204,66 @@ class AllCodesAPITests(TestCase):
         data = res.json()
         self.assertEqual(data["count"], 1)
         self.assertEqual(data["deals"][0]["partner"], "Best Buy")
+
+
+class StudentCodeServicesTests(TestCase):
+    def test_normalize_text_strips_and_lowercases(self):
+        self.assertEqual(normalize_text("  Best-Buy!!  "), "best buy")
+        self.assertEqual(normalize_text(None), "")
+
+    def test_domain_tokens_extracts_hostname_words(self):
+        tokens = domain_tokens("https://www.bestbuy.com/deals?x=1")
+        self.assertIn("bestbuy", tokens)
+        self.assertNotIn("com", tokens)
+
+    def test_clean_code_value_filters_placeholders(self):
+        self.assertEqual(clean_code_value("no_code"), "")
+        self.assertEqual(clean_code_value(" UNIQUE "), "")
+        self.assertEqual(clean_code_value("random"), "")
+        self.assertEqual(clean_code_value("N/A"), "")
+        self.assertEqual(clean_code_value("SAVE10"), "SAVE10")
+
+    def test_serialize_code_cleans_codes_and_includes_relevance(self):
+        code = SimpleNamespace(
+            id=1,
+            source="spc",
+            external_id="offer-1",
+            company="Best Buy",
+            category="Tech",
+            title="Laptop discount",
+            desc="Save on laptops",
+            url="https://bestbuy.com",
+            code="unique",
+            in_store_code="STORE10",
+            online=True,
+            in_store=False,
+            is_spc_plus=False,
+            logo="",
+            image="",
+            popularity_score=10,
+        )
+        payload = serialize_code(code, relevance_score=7)
+        self.assertEqual(payload["partner"], "Best Buy")
+        self.assertEqual(payload["promo_code_online"], "")  # cleaned "unique"
+        self.assertEqual(payload["promo_code_instore"], "STORE10")
+        self.assertEqual(payload["relevance_score"], 7)
+
+    def test_score_code_against_transaction_rewards_matches(self):
+        code = SimpleNamespace(company="Best Buy", title="Laptop", category="Tech", url="https://bestbuy.com")
+        tx = SimpleNamespace(
+            merchant_name="BEST BUY",
+            name="Best Buy #1234",
+            category=["Tech", "Shopping"],
+            website="https://www.bestbuy.com",
+        )
+        score = score_code_against_transaction(code, tx)
+        self.assertGreaterEqual(score, 15)
+
+    def test_score_code_for_transactions_sums_scores(self):
+        code = SimpleNamespace(company="Nike", title="Shoes", category="Fashion", url="https://nike.com")
+        tx1 = SimpleNamespace(merchant_name="NIKE", name="Nike", category=["Fashion"], website="https://www.nike.com")
+        tx2 = SimpleNamespace(merchant_name="GROCERY", name="Store", category=["Food"], website="")
+        self.assertEqual(
+            score_code_for_transactions(code, [tx1, tx2]),
+            score_code_against_transaction(code, tx1) + score_code_against_transaction(code, tx2),
+        )
