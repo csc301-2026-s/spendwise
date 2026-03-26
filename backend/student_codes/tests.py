@@ -3,6 +3,9 @@ from unittest.mock import Mock, patch
 from django.test import TestCase
 import requests
 
+from student_codes.models import Codes
+
+
 class SPCDealsAPITests(TestCase):
     @patch("student_codes.views.requests.get")
     def test_returns_normalized_deals(self, mock_get):
@@ -87,3 +90,49 @@ class SPCDealsAPITests(TestCase):
         res = self.client.get("/api/student-codes/spc/")
         self.assertEqual(res.status_code, 502)
 
+
+class TrendingCodesAPITests(TestCase):
+    def test_returns_top_10_codes_by_popularity(self):
+        for index in range(12):
+            Codes.objects.create(
+                source=Codes.SOURCE_SPC,
+                external_id=f"offer-{index}",
+                company=f"Company {index}",
+                title=f"Offer {index}",
+                category="Food",
+                popularity_score=index,
+                source_rank=index,
+            )
+
+        res = self.client.get("/api/student-codes/trending/")
+        self.assertEqual(res.status_code, 200)
+
+        data = res.json()
+        self.assertEqual(data["count"], 10)
+        self.assertEqual(len(data["deals"]), 10)
+        self.assertEqual(data["deals"][0]["partner"], "Company 11")
+        self.assertEqual(data["deals"][-1]["partner"], "Company 2")
+
+    def test_uses_source_rank_as_tiebreaker(self):
+        Codes.objects.create(
+            source=Codes.SOURCE_SPC,
+            external_id="offer-a",
+            company="Later Rank",
+            title="Offer A",
+            popularity_score=100,
+            source_rank=5,
+        )
+        Codes.objects.create(
+            source=Codes.SOURCE_UNIDAYS,
+            external_id="offer-b",
+            company="Earlier Rank",
+            title="Offer B",
+            popularity_score=100,
+            source_rank=1,
+        )
+
+        res = self.client.get("/api/student-codes/trending/")
+        self.assertEqual(res.status_code, 200)
+
+        data = res.json()
+        self.assertEqual(data["deals"][0]["partner"], "Earlier Rank")

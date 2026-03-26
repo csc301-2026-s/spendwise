@@ -1,9 +1,13 @@
 
-# Create your views here.
 import requests
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from transactions.models import Transaction
+
+from .models import Codes
+from .services import score_code_for_transactions, serialize_code
 
 SPC_OFFERS_URL = "https://offers-and-partners-7ada7hxd2a-uc.a.run.app/v5/offers/summary"
 SPC_IMAGE_BASE = "https://storage.spccard.ca/"
@@ -82,5 +86,45 @@ class SPCDealsAPI(APIView):
                 "total_count": payload.get("total_count", len(normalized)),
                 "count": len(normalized),
                 "deals": normalized,
+            }
+        )
+
+
+class TrendingCodesAPI(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        top_codes = list(Codes.objects.order_by("-popularity_score", "source_rank", "company")[:10])
+        return Response(
+            {
+                "count": len(top_codes),
+                "deals": [serialize_code(code) for code in top_codes],
+            }
+        )
+
+
+class RecommendedCodesAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        transactions = list(
+            Transaction.objects.filter(user=request.user).order_by("-date", "-created_at")[:250]
+        )
+
+        scored = []
+        for code in Codes.objects.all():
+            relevance = score_code_for_transactions(code, transactions)
+            if relevance > 0:
+                scored.append((relevance, code))
+
+        scored.sort(
+            key=lambda item: (item[0], item[1].popularity_score, -item[1].source_rank),
+            reverse=True,
+        )
+
+        return Response(
+            {
+                "count": len(scored),
+                "deals": [serialize_code(code, relevance_score=score) for score, code in scored],
             }
         )
