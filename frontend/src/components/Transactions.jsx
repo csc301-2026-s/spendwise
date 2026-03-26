@@ -557,7 +557,7 @@ export default function Transactions() {
                                   merchant_name: t.name,
                                   account_id: selectedAccount,
                                   is_recurring: false,
-                                  dismiss_for_days: 1,
+                                  dismiss_until_next_tx: true,
                                 }),
                               })
                                 .then(async (res) => {

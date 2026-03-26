@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, Max
 from django.db.models.functions import Coalesce, Abs
 from datetime import datetime
 from datetime import timedelta
@@ -102,7 +102,8 @@ class SpendingViewset(viewsets.ViewSet):
             .annotate(
                 # Use absolute value so refunds/credits don't hide "high impact" merchants.
                 total_abs=Sum(Abs("amount")),
-                count=Count("id")
+                count=Count("id"),
+                latest_date=Max("date"),
             )
             .filter(
                 Q(count__gte=self.RECURRING_MIN_COUNT) | Q(total_abs__gte=self.RECURRING_MIN_TOTAL)
@@ -146,6 +147,15 @@ class SpendingViewset(viewsets.ViewSet):
             qs = qs.filter(Q(account_id="") | Q(account_id=account_id))
         return set(qs.values_list("merchant_key", flat=True))
 
+    def _dismissed_after_by_key(self, request, account_id: str | None) -> dict[str, datetime.date]:
+        qs = RecurringMerchant.objects.filter(
+            user=request.user,
+            dismissed_after__isnull=False,
+        )
+        if account_id:
+            qs = qs.filter(Q(account_id="") | Q(account_id=account_id))
+        return {row["merchant_key"]: row["dismissed_after"] for row in qs.values("merchant_key", "dismissed_after")}
+
     @action(detail=False, methods=["post"])
     def set_recurring(self, request):
         merchant_name = request.data.get("merchant_name") or request.data.get("merchant") or ""
@@ -153,8 +163,10 @@ class SpendingViewset(viewsets.ViewSet):
         account_id = request.data.get("account_id") or ""
         is_recurring = self._parse_bool(request.data.get("is_recurring"), default=True)
         dismiss_for_days = request.data.get("dismiss_for_days")
+        dismiss_until_next_tx = self._parse_bool(request.data.get("dismiss_until_next_tx"), default=False)
 
         dismissed_until = None
+        dismissed_after = None
         if not is_recurring and dismiss_for_days is not None:
             try:
                 days = int(dismiss_for_days)
@@ -163,6 +175,8 @@ class SpendingViewset(viewsets.ViewSet):
             days = max(0, min(days, 30))
             if days:
                 dismissed_until = timezone.now() + timedelta(days=days)
+        if not is_recurring and dismiss_until_next_tx:
+            dismissed_after = timezone.localdate()
 
         obj, _created = RecurringMerchant.objects.update_or_create(
             user=request.user,
@@ -172,6 +186,7 @@ class SpendingViewset(viewsets.ViewSet):
                 "merchant_name": merchant_name,
                 "is_recurring": is_recurring,
                 "dismissed_until": dismissed_until,
+                "dismissed_after": dismissed_after,
             },
         )
 
@@ -182,6 +197,7 @@ class SpendingViewset(viewsets.ViewSet):
                 "account_id": obj.account_id,
                 "is_recurring": obj.is_recurring,
                 "dismissed_until": obj.dismissed_until,
+                "dismissed_after": obj.dismissed_after,
             }
         )
 
@@ -266,6 +282,7 @@ class SpendingViewset(viewsets.ViewSet):
         account_id = request.query_params.get("account_id")
         approved = self._approved_recurring_keys(request, account_id)
         dismissed = self._dismissed_keys(request, account_id)
+        dismissed_after_by_key = self._dismissed_after_by_key(request, account_id)
 
         codes = self.get_student_data(request)
 
@@ -279,6 +296,11 @@ class SpendingViewset(viewsets.ViewSet):
             merchant_key = self._merchant_key(merchant)
             if merchant_key in dismissed:
                 continue
+            dismissed_after = dismissed_after_by_key.get(merchant_key)
+            if dismissed_after is not None:
+                latest_date = s.get("latest_date")
+                if latest_date and latest_date <= dismissed_after:
+                    continue
             is_recurring = merchant_key in approved
 
             # Food delivery
