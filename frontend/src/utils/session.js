@@ -13,6 +13,10 @@ const DEFAULT_PROFILE = {
   degree_type: "Undergrad",
   citizenship: "Domestic",
   campus: "St.George",
+  total_earnings: 0,
+  total_expenses: 0,
+  parental_support: 0,
+  scholarship_aid_amount: 0,
 };
 
 export function getToken() {
@@ -106,6 +110,11 @@ export function profileToScholarshipProfile(profile = {}) {
     degree_type: profile.degree_type || existing.degree_type || DEFAULT_PROFILE.degree_type,
     citizenship: profile.citizenship_status || existing.citizenship || DEFAULT_PROFILE.citizenship,
     campus: profile.campus || existing.campus || DEFAULT_PROFILE.campus,
+    total_earnings: profile.total_earnings ?? existing.total_earnings ?? DEFAULT_PROFILE.total_earnings,
+    total_expenses: profile.total_expenses ?? existing.total_expenses ?? DEFAULT_PROFILE.total_expenses,
+    parental_support: profile.parental_support ?? existing.parental_support ?? DEFAULT_PROFILE.parental_support,
+    scholarship_aid_amount:
+      profile.scholarship_aid_amount ?? existing.scholarship_aid_amount ?? DEFAULT_PROFILE.scholarship_aid_amount,
   };
 }
 

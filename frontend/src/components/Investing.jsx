@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "./Navbar";
+import { fetchProfile } from "../utils/session";
+import { buildFinancialSnapshot, coverageAmount, coveragePercent } from "../utils/financialSnapshot";
 
 const API_BASE = "/api";
 
@@ -110,6 +112,7 @@ export default function Investing() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [financialProfile, setFinancialProfile] = useState({});
 
   useEffect(() => {
     async function loadSavings() {
@@ -134,6 +137,12 @@ export default function Investing() {
     }
 
     loadSavings();
+  }, []);
+
+  useEffect(() => {
+    fetchProfile()
+      .then((profile) => setFinancialProfile(profile))
+      .catch(() => setFinancialProfile({}));
   }, []);
 
   const visiblePortfolios = useMemo(() => {
@@ -170,6 +179,18 @@ export default function Investing() {
   }, [initialAmount, monthlyContribution, selectedPortfolio, monthsLeft]);
 
   const investingEdge = investingValue - savingsOnlyValue;
+  const financialSnapshot = useMemo(
+    () => buildFinancialSnapshot(financialProfile),
+    [financialProfile]
+  );
+  const investmentCoverage = useMemo(
+    () => coverageAmount(financialSnapshot.deficit, Math.max(investingEdge, 0)),
+    [financialSnapshot.deficit, investingEdge]
+  );
+  const investmentCoveragePercent = useMemo(
+    () => coveragePercent(financialSnapshot.deficit, investmentCoverage),
+    [financialSnapshot.deficit, investmentCoverage]
+  );
 
   const heroProgress = Math.min(
     100,
@@ -293,6 +314,13 @@ export default function Investing() {
                   {investingEdge >= 0 ? "+" : "-"}${money(Math.abs(investingEdge))}
                 </div>
                 <div className="inv-statLabel">Edge vs Saving Only</div>
+              </div>
+
+              <div className="inv-stat">
+                <div className={`inv-statValue ${investmentCoverage > 0 ? "positive" : ""}`}>
+                  ${money(investmentCoverage)}
+                </div>
+                <div className="inv-statLabel">Projected Gap Coverage</div>
               </div>
             </div>
 
@@ -495,7 +523,12 @@ export default function Investing() {
 
             <div className="inv-card">
               <h2 className="inv-sectionTitle">Guidance</h2>
-              <div className="inv-hint">{insight} This simulator uses hypothetical returns and is not investment advice.</div>
+              <div className="inv-hint">
+                {financialSnapshot.deficit > 0
+                  ? `Your current monthly deficit is $${money(financialSnapshot.deficit)}. Based on the extra growth over saving only, this setup could cover about $${money(investmentCoverage)} (${investmentCoveragePercent}%) of that gap by your target date. `
+                  : `Your current profile shows no monthly deficit. Any projected growth acts as extra cushion rather than gap coverage. `}
+                {insight} This simulator uses hypothetical returns and is not investment advice.
+              </div>
             </div>
           </div>
 
@@ -516,6 +549,16 @@ export default function Investing() {
               <div className="inv-compareBox">
                 <div className="inv-compareLabel">Selected Portfolio</div>
                 <div className="inv-compareValue">{selectedPortfolio.name}</div>
+              </div>
+
+              <div className="inv-compareBox" style={{ marginTop: "0.85rem" }}>
+                <div className="inv-compareLabel">Current Monthly Deficit</div>
+                <div className="inv-compareValue">${money(financialSnapshot.deficit)}</div>
+              </div>
+
+              <div className="inv-compareBox" style={{ marginTop: "0.85rem" }}>
+                <div className="inv-compareLabel">Projected Gap Coverage</div>
+                <div className="inv-compareValue">{investmentCoveragePercent}%</div>
               </div>
             </div>
 
