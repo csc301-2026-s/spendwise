@@ -3,3 +3,4 @@
 **/*.py[cod]
 backend/.env
 token.txt
+venv/
