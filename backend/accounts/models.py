@@ -59,6 +59,15 @@ class UserProfile(models.Model):
     parental_support = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     degree_type = models.CharField(max_length=32, choices=DEGREE_CHOICES, blank=True)
     expected_graduation = models.CharField(max_length=120, blank=True)
+    estimated_annual_school_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Estimated total school-year cost (tuition, fees, housing, books).",
+    )
+    gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    resume_summary = models.TextField(blank=True, help_text="Short text for scholarship matching (achievements, leadership, etc.).")
     auth_provider = models.CharField(max_length=32, choices=AUTH_PROVIDER_CHOICES, default="email")
     is_uoft_verified = models.BooleanField(default=True)
     utorid = models.CharField(max_length=64, null=True, blank=True, unique=True)

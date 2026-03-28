@@ -402,18 +402,25 @@ Build and start services:
 Run in background:
 
 ```bash
-
 docker compose up -d --build
 ```
 
-Run scholarship data ingestion (and apply migrations if needed):
+**Database migrations (run after containers are up, and again whenever you pull schema changes):**
 
 ```bash
 docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py ingest_awardexplorer
 ```
 
-If needed, run migrations again to ensure you have the latest update.
+**Optional data sync (fresh DB or when you need catalog content):** not required on every restart if data already exists in the volume.
+
+```bash
+# UofT scholarship listings (undergrad by default; add --level grad for graduate catalog)
+docker compose exec backend python manage.py ingest_awardexplorer
+docker compose exec backend python manage.py ingest_awardexplorer --level grad
+
+# Student discount codes (SPC / UNiDAYS / Student Beans) for the Student Codes page
+docker compose exec backend python manage.py sync_student_codes
+```
 
 Stop containers:
 
@@ -452,6 +459,7 @@ docker compose up --build
 ## Notes
 
 - Data is persisted via Docker volumes.
+- The **frontend** container keeps `node_modules` in a Docker volume. After pulling changes that add npm packages, **rebuild or restart the frontend** so it runs `npm install` on start (or run `docker compose exec frontend npm install` once).
 - Avoid running `docker compose down -v` unless you want to wipe the database.
 - If containers fail to start, try:
 

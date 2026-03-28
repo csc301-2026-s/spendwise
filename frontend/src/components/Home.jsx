@@ -300,6 +300,7 @@ export default function Dashboard() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalSavings, setTotalSavings] = useState(0);
   const [financialProfile, setFinancialProfile] = useState({});
+  const [scholarshipStats, setScholarshipStats] = useState(null);
   const [deltaPct, setDeltaPct] = useState(0);
   const [monthlyDetail, setMonthlyDetail] = useState({
     transactions: 0,
@@ -386,6 +387,13 @@ export default function Dashboard() {
     fetchProfile()
       .then((profile) => setFinancialProfile(profile))
       .catch(() => setFinancialProfile({}));
+  }, []);
+
+  useEffect(() => {
+    fetchWithAuth(`${API_BASE_URL}/scholarships/saved/stats/`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setScholarshipStats(data))
+      .catch(() => setScholarshipStats(null));
   }, []);
 
   useEffect(() => {
@@ -627,6 +635,34 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {scholarshipStats && scholarshipStats.total_saved > 0 && (
+              <div className="card" style={{ marginTop: "0.8rem", marginBottom: "1rem", padding: "0.95rem 1rem" }}>
+                <div className="card-title">
+                  <h2>Scholarship pipeline</h2>
+                </div>
+                <p style={{ fontSize: "0.95rem", color: "var(--sw-text-muted)", marginBottom: "0.75rem" }}>
+                  {scholarshipStats.total_saved} saved in your tracker
+                  {scholarshipStats.awarded + scholarshipStats.not_awarded > 0 && (
+                    <>
+                      {" "}
+                      · {scholarshipStats.awarded} awarded, {scholarshipStats.not_awarded} not awarded
+                      {scholarshipStats.acceptance_rate != null && (
+                        <> ({Math.round(scholarshipStats.acceptance_rate * 100)}% of decided)</>
+                      )}
+                    </>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  className="link"
+                  style={{ fontWeight: 600, cursor: "pointer", background: "none", border: "none", padding: 0, color: "var(--sw-primary)" }}
+                  onClick={() => navigate("/my-scholarships")}
+                >
+                  Open My Scholarships →
+                </button>
+              </div>
+            )}
 
             <div className="actions">
               <QuickTile

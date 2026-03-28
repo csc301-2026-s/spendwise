@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
@@ -133,6 +135,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source="user.first_name", required=False, allow_blank=True)
     last_name = serializers.CharField(source="user.last_name", required=False, allow_blank=True)
     email = serializers.EmailField(source="user.email", read_only=True)
+    net_annual_cost_after_aid = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfile
@@ -152,9 +155,23 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "parental_support",
             "degree_type",
             "expected_graduation",
+            "estimated_annual_school_cost",
+            "gpa",
+            "resume_summary",
+            "net_annual_cost_after_aid",
             "onboarding_completed",
         )
-        read_only_fields = ("onboarding_completed",)
+        read_only_fields = ("onboarding_completed", "net_annual_cost_after_aid")
+
+    def get_net_annual_cost_after_aid(self, obj):
+        if obj.estimated_annual_school_cost is None:
+            return None
+        cost = obj.estimated_annual_school_cost
+        if obj.receives_scholarships_or_aid and obj.scholarship_aid_amount is not None:
+            # scholarship_aid_amount is stored as monthly (same convention as other budget fields)
+            annual_aid = obj.scholarship_aid_amount * 12
+            return max(Decimal("0"), cost - annual_aid)
+        return cost
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

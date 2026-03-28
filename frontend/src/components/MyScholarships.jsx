@@ -7,6 +7,8 @@ const STATUSES = [
   { key: "saved", label: "Saved" },
   { key: "in_progress", label: "In Progress" },
   { key: "submitted", label: "Submitted" },
+  { key: "awarded", label: "Awarded" },
+  { key: "not_awarded", label: "Not awarded" },
 ];
 
 
@@ -94,6 +96,7 @@ function KanbanCard({ item, onDragStart, onDragEnd, isDragging }) {
 export default function MyScholarships() {
   const navigate = useNavigate();
   const [saved, setSaved] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [draggingItem, setDraggingItem] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
@@ -101,12 +104,24 @@ export default function MyScholarships() {
   const fetchSaved = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchWithAuth(`${API_BASE_URL}/scholarships/saved/`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setSaved(Array.isArray(data) ? data : []);
+      const [listRes, statsRes] = await Promise.all([
+        fetchWithAuth(`${API_BASE_URL}/scholarships/saved/`),
+        fetchWithAuth(`${API_BASE_URL}/scholarships/saved/stats/`),
+      ]);
+      if (listRes.ok) {
+        const data = await listRes.json();
+        setSaved(Array.isArray(data) ? data : []);
+      } else {
+        setSaved([]);
+      }
+      if (statsRes.ok) {
+        setStats(await statsRes.json());
+      } else {
+        setStats(null);
+      }
     } catch {
       setSaved([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -168,6 +183,18 @@ export default function MyScholarships() {
           <div className="ms-header">
             <h1>My Scholarships</h1>
             <p>Drag and drop scholarships between columns to track your progress.</p>
+            {stats && stats.total_saved > 0 && (
+              <p className="ms-pipeline-summary">
+                Pipeline: {stats.total_saved} saved
+                {stats.awarded + stats.not_awarded > 0 && stats.acceptance_rate != null && (
+                  <>
+                    {" "}
+                    · Award outcomes: {stats.awarded} awarded / {stats.not_awarded} not awarded (rate{" "}
+                    {Math.round(stats.acceptance_rate * 100)}% of decided)
+                  </>
+                )}
+              </p>
+            )}
           </div>
 
           {loading ? (

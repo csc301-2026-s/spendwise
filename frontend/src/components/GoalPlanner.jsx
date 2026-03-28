@@ -216,6 +216,13 @@ export default function GoalPlanner() {
     [financialProfile]
   );
 
+  const netAnnualAfterAid = useMemo(() => {
+    const v = financialProfile?.net_annual_cost_after_aid;
+    if (v == null || v === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }, [financialProfile]);
+
   const investmentCoverage = useMemo(
     () => coverageAmount(financialSnapshot.deficit, Math.max(investingEdge, 0)),
     [financialSnapshot.deficit, investingEdge]
@@ -421,6 +428,15 @@ export default function GoalPlanner() {
               <h2 className="inv-sectionTitle">1. Savings Snapshot</h2>
               <p className="inv-sectionSub">
                 We use the savings estimate from your spending feature as the starting point.
+                {netAnnualAfterAid != null && (
+                  <>
+                    {" "}
+                    Your profile estimates a net annual school cost after aid of{" "}
+                    <strong>${money(netAnnualAfterAid)}</strong> (about{" "}
+                    <strong>${money(netAnnualAfterAid / 12)}</strong>/mo)—use monthly contribution toward tuition
+                    goals alongside everyday savings.
+                  </>
+                )}
               </p>
               <div className="inv-formGrid">
                 <div className="inv-field">

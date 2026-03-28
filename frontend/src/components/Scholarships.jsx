@@ -41,6 +41,10 @@ const ClockIcon = () => (
 const DEFAULT_PROFILE = {
   faculty: "", major: "", year: 1,
   degree_type: "Undergrad", citizenship: "Domestic", campus: "St.George",
+  receives_scholarships_or_aid: false,
+  gpa: null,
+  resume_summary: "",
+  student_level: "undergrad",
 };
 
 function loadProfile() {
@@ -67,10 +71,34 @@ function formatDeadline(dateStr) {
   return new Date(dateStr).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const STATUS_LABELS = { saved: "Saved", in_progress: "In Progress", submitted: "Submitted" };
+function buildMatchPayload(profile) {
+  const deg = profile.degree_type || "Undergrad";
+  const student_level = profile.student_level || (deg === "Postgrad" ? "grad" : "undergrad");
+  const payload = {
+    faculty: profile.faculty,
+    major: profile.major,
+    year: profile.year,
+    degree_type: deg,
+    citizenship: profile.citizenship,
+    campus: profile.campus,
+    student_level: student_level,
+    financial_need: Boolean(profile.receives_scholarships_or_aid),
+  };
+  if (profile.gpa != null && profile.gpa !== "") payload.gpa = Number(profile.gpa);
+  if (profile.resume_summary) payload.resume_summary = profile.resume_summary;
+  return payload;
+}
+
+const STATUS_LABELS = {
+  saved: "Saved",
+  in_progress: "In Progress",
+  submitted: "Submitted",
+  awarded: "Awarded",
+  not_awarded: "Not awarded",
+};
 
 // ── Sub-components ──
-function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status, deficit }) {
+function ScholarshipCard({ s, score, reasons, eligible, isSaved, onSave, onUnsave, status, deficit }) {
   const amt = formatAmount(s);
   const days = daysUntil(s.deadline);
   const isUrgent = days !== null && days <= 14;
@@ -129,6 +157,7 @@ function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status,
           <span className={`sc-deadline ${!isUrgent ? "sc-deadline-gray" : ""}`}>
             {isUrgent ? <ClockIcon /> : <CalendarIcon />}
             Deadline: {formatDeadline(s.deadline)}
+            {s.deadline_is_estimated ? " (estimated)" : ""}
             {days !== null && days >= 0 && ` (${days} days left)`}
           </span>
         ) : (
@@ -141,7 +170,11 @@ function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status,
 
       {score !== undefined && (
         <div className="sc-score-bar">
-          <span className="sc-score-label">Match {Math.round(score * 100)}%</span>
+          <span className="sc-score-label">
+            Match {Math.round(score * 100)}%
+            {eligible === false && " · exploratory"}
+            {eligible === true && " · strong fit"}
+          </span>
           <div className="sc-score-track">
             <div className="sc-score-fill" style={{ width: `${score * 100}%` }} />
           </div>
@@ -188,6 +221,7 @@ export default function Scholarships() {
   const [sortBy, setSortBy]                     = useState("title");
   const [filterCitizenship, setFilterCitizenship] = useState("");
   const [filterAwardType, setFilterAwardType]   = useState("");
+  const [filterStudentLevel, setFilterStudentLevel] = useState("undergrad");
 
   const PAGE_SIZE = 20;
 
@@ -304,6 +338,7 @@ export default function Scholarships() {
       if (sortBy)            params.set("sort", sortBy);
       if (filterCitizenship) params.set("citizenship", filterCitizenship);
       if (filterAwardType)   params.set("award_type", filterAwardType);
+      if (filterStudentLevel) params.set("student_level", filterStudentLevel);
 
       const res = await fetch(`${API}/scholarships/?${params}`);
       const data = await res.json();
@@ -312,7 +347,7 @@ export default function Scholarships() {
     } catch (e) {
       console.error(e);
     } finally { setLoading(false); }
-  }, [page, q, sortBy, filterCitizenship, filterAwardType]);
+  }, [page, q, sortBy, filterCitizenship, filterAwardType, filterStudentLevel]);
 
   // ── Fetch match ──
   const fetchMatch = useCallback(async () => {
@@ -321,7 +356,7 @@ export default function Scholarships() {
       const res = await fetch(`${API}/scholarships/match/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify(buildMatchPayload(profile)),
       });
       const data = await res.json();
       setMatchResults(data);
@@ -337,11 +372,16 @@ export default function Scholarships() {
   }, [onlyMatched, viewSavedOnly, fetchScholarships, fetchMatch]);
 
   // reset page on filter change
-  useEffect(() => { setPage(1); }, [q, sortBy, filterCitizenship, filterAwardType, onlyMatched]);
+  useEffect(() => { setPage(1); }, [q, sortBy, filterCitizenship, filterAwardType, filterStudentLevel, onlyMatched]);
 
   const displayList = (() => {
     if (onlyMatched && matchResults?.length) {
-      const mapped = matchResults.map((r) => ({ ...r.scholarship, _score: r.score, _reasons: r.reasons }));
+      const mapped = matchResults.map((r) => ({
+        ...r.scholarship,
+        _score: r.score,
+        _reasons: r.reasons,
+        _eligible: r.eligible,
+      }));
       return [...mapped].sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
     }
     if (viewSavedOnly) {
@@ -443,6 +483,19 @@ export default function Scholarships() {
 
               <div className="sc-divider" />
 
+              <select
+                className="sc-select"
+                value={filterStudentLevel}
+                onChange={(e) => setFilterStudentLevel(e.target.value)}
+                disabled={onlyMatched}
+                title={onlyMatched ? "Match uses your profile degree (Undergrad vs Postgrad)" : ""}
+              >
+                <option value="undergrad">Undergraduate catalog</option>
+                <option value="grad">Graduate catalog</option>
+              </select>
+
+              <div className="sc-divider" />
+
               <div className="sc-toggle-wrap" onClick={() => setOnlyMatched((v) => !v)}>
                 Match to my profile
                 <div className={`sc-toggle ${onlyMatched ? "on" : ""}`} />
@@ -487,6 +540,7 @@ export default function Scholarships() {
                   s={s}
                   score={s._score}
                   reasons={s._reasons}
+                  eligible={s._eligible}
                   deficit={financialSnapshot.deficit}
                   isSaved={savedIds.has(s.id)}
                   status={savedStatusMap[s.id]}
