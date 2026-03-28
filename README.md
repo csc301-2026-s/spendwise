@@ -422,13 +422,6 @@ docker compose exec backend python manage.py ingest_awardexplorer --level grad
 docker compose exec backend python manage.py sync_student_codes
 ```
 
-**Local Django (virtualenv, no Docker):** from the `backend/` directory, with Postgres reachable (e.g. port forwarded to `localhost` and env vars matching your `.env`):
-
-```bash
-cd backend
-python manage.py migrate
-```
-
 Stop containers:
 
 ```bash
@@ -466,6 +459,7 @@ docker compose up --build
 ## Notes
 
 - Data is persisted via Docker volumes.
+- The **frontend** container keeps `node_modules` in a Docker volume. After pulling changes that add npm packages, **rebuild or restart the frontend** so it runs `npm install` on start (or run `docker compose exec frontend npm install` once).
 - Avoid running `docker compose down -v` unless you want to wipe the database.
 - If containers fail to start, try:
 
