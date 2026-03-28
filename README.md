@@ -402,18 +402,32 @@ Build and start services:
 Run in background:
 
 ```bash
-
 docker compose up -d --build
 ```
 
-Run scholarship data ingestion (and apply migrations if needed):
+**Database migrations (run after containers are up, and again whenever you pull schema changes):**
 
 ```bash
 docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py ingest_awardexplorer
 ```
 
-If needed, run migrations again to ensure you have the latest update.
+**Optional data sync (fresh DB or when you need catalog content):** not required on every restart if data already exists in the volume.
+
+```bash
+# UofT scholarship listings (undergrad by default; add --level grad for graduate catalog)
+docker compose exec backend python manage.py ingest_awardexplorer
+docker compose exec backend python manage.py ingest_awardexplorer --level grad
+
+# Student discount codes (SPC / UNiDAYS / Student Beans) for the Student Codes page
+docker compose exec backend python manage.py sync_student_codes
+```
+
+**Local Django (virtualenv, no Docker):** from the `backend/` directory, with Postgres reachable (e.g. port forwarded to `localhost` and env vars matching your `.env`):
+
+```bash
+cd backend
+python manage.py migrate
+```
 
 Stop containers:
 
