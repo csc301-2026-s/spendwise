@@ -456,6 +456,22 @@ docker compose up --build
 
 ---
 
+## 🧪 Running Tests & Coverage
+
+All tests are located in the `tests/` folder inside the backend.
+
+### Steps
+
+```bash
+cd backend
+python manage.py test tests
+coverage run manage.py test tests
+coverage report
+coverage html
+```
+
+Then you can open htmlcov/index.html to view the coverage report
+
 ## Notes
 
 - Data is persisted via Docker volumes.
