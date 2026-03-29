@@ -8,8 +8,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import PendingRegistration
-from .services import hash_verification_code
+from accounts.models import PendingRegistration
+from accounts.services import hash_verification_code
 
 User = get_user_model()
 

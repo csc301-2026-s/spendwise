@@ -49,6 +49,10 @@ INSTALLED_APPS = [
     'transactions',
 ]
 
+# Allow a standalone test-only app to hold integration-style tests.
+if "test" in sys.argv and "project_tests" not in INSTALLED_APPS:
+    INSTALLED_APPS.append("project_tests")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
