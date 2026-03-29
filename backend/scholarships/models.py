@@ -19,8 +19,6 @@ class SavedScholarshipStatus(models.TextChoices):
     SAVED = "saved", "Saved / Planned"
     IN_PROGRESS = "in_progress", "In Progress"
     SUBMITTED = "submitted", "Submitted"
-    AWARDED = "awarded", "Awarded"
-    NOT_AWARDED = "not_awarded", "Not awarded"
 
 
 class Scholarship(models.Model):
@@ -36,7 +34,7 @@ class Scholarship(models.Model):
     is_active = models.BooleanField(
         default=True,
         db_index=True,
-        help_text="False when not seen in last catalog ingest for this level.",
+        help_text="False when no longer present in the last catalog ingest for this level.",
     )
 
     # CORE INFO
@@ -77,7 +75,7 @@ class Scholarship(models.Model):
     deadline = models.DateField(null=True)
     deadline_is_estimated = models.BooleanField(
         default=False,
-        help_text="True when deadline was assumed (e.g. April 30) because source had none.",
+        help_text="True when deadline was assumed (e.g. April 30) because the source had none.",
     )
     last_seen_at = models.DateTimeField(default=timezone.now)
     #sets it once on creation and never touches it again
