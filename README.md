@@ -314,26 +314,6 @@ Click "Investments" tile to access goal simulator where you:
 - Auto-rebalancing alerts when portfolio drifts from target allocations
 - Integration with actual brokerage APIs for live tracking
 
-Then you can open htmlcov/index.html to view the coverage report
-
-## 🌙 Accessibility: Dark Mode
-
-To improve accessibility, a **Dark Mode toggle** has been implemented for users who prefer low-light interfaces.
-
-### Features
-- 🌑 Reduces eye strain in low-light environments  
-- 🎯 Easily accessible via the navigation bar  
-- 👤 Located next to the profile button for quick access  
-
-### How to Use
-1. Navigate to the top navigation bar  
-2. Click the **Dark Mode toggle** next to the profile button  
-3. The interface will switch to a dark theme  
-
-### Notes
-- Designed for better usability and accessibility  
-- Enhances user experience during nighttime or prolonged usage  
-
 ## Summary
 
 SpendWise centralizes:
@@ -382,6 +362,8 @@ git clone https://github.com/csc301-2026-s/spendwise.git
 cd spendwise
 git fetch --all
 git checkout -b dev origin/dev
+```
+
 ---
 
 ### 2)  Create a Local Virtual Environment
@@ -400,10 +382,10 @@ Activate the virtual environment:
 ```bash
 source venv/bin/activate
 ```
-Install the Dependencies
-```bash
+Install the dependencies:
 
-python -m pip install -r backend/requirements.txt
+```bash
+python3 -m pip install -r backend/requirements.txt
 ```
 Deactivate when done:
 
@@ -413,40 +395,70 @@ deactivate
 
 ---
 
-### 4) Start All Containers
+### 3) Start all containers, migrate, and (optional) load scholarships
 
-Build and start services:
+1. **Build images** (when dependencies or Dockerfiles change):
 
+   ```bash
+   docker compose build
+   ```
 
+   Use **`docker compose up -d --build`** to build and start in one step. The `-d` flag is for **`up`** (run detached), not for `build` — `docker compose build -d` is invalid.
 
-Run in background:
+2. **Start containers** in the background:
 
-```bash
-docker compose up -d --build
-```
+   ```bash
+   docker compose up -d
+   ```
 
-**Database migrations (run after containers are up, and again whenever you pull schema changes):**
+3. **Apply database migrations** (always run this inside the **backend** container so Django can reach Postgres):
 
-```bash
-docker compose exec backend python manage.py migrate
-```
+   ```bash
+   docker compose exec backend python manage.py migrate
+   ```
 
-**Optional data sync (fresh DB or when you need catalog content):** not required on every restart if data already exists in the volume.
+4. **Load scholarship data** from U of T Award Explorer (requires network; can take several minutes). Ingest **undergraduate** and **graduate** catalogs separately:
 
-```bash
-# UofT scholarship listings (undergrad by default; add --level grad for graduate catalog)
-docker compose exec backend python manage.py ingest_awardexplorer
-docker compose exec backend python manage.py ingest_awardexplorer --level grad
+   ```bash
+   docker compose exec backend python manage.py ingest_awardexplorer --level undergrad
+   docker compose exec backend python manage.py ingest_awardexplorer --level grad
+   ```
 
-# Student discount codes (SPC / UNiDAYS / Student Beans) for the Student Codes page
-docker compose exec backend python manage.py sync_student_codes
-```
+   Optional: prune overdue saved-scholarship rows without a full ingest:
 
-Stop containers:
+   ```bash
+   docker compose exec backend python manage.py scholarships_cleanup
+   ```
 
-```bash
-docker compose down
-```
+   **Saved scholarships vs monthly deficit (API for integrations):** `GET /api/scholarships/saved/deficit-impact/` (JWT required) returns the user’s profile-based **monthly deficit**, count and nominal dollar total of saved awards, a probability-weighted **potential** amount, and **remaining deficit** after that potential. Optional query: `?probability=0.8` (must be in `(0, 1]`; default from env below). Catalog award amounts are not normalized to monthly; the JSON `notes` and `disclaimer` fields explain that the figures are illustrative.
+
+   **Backend environment variables** (optional; see `backend/config/settings.py`):
+
+   | Variable | Purpose |
+   |----------|---------|
+   | `SCHOLARSHIP_ASSUMED_WIN_PROBABILITY` | Default probability for `potential_amount` when `probability` is omitted (default `0.8`). |
+   | `AWARD_EXPLORER_POST_URL` | POST endpoint for paginated Award Explorer export. |
+   | `AWARD_EXPLORER_UNDERGRAD_BASE_URL` | Undergrad catalog page URL. |
+   | `AWARD_EXPLORER_UNDERGRAD_REPORT_ID` | Report id for undergrad ingest. |
+   | `AWARD_EXPLORER_UNDERGRAD_REPORT_NAME` | Report name string sent with undergrad requests. |
+   | `AWARD_EXPLORER_GRAD_BASE_URL` | Graduate catalog page URL. |
+   | `AWARD_EXPLORER_GRAD_REPORT_ID` | Report id for graduate ingest. |
+   | `AWARD_EXPLORER_GRAD_REPORT_NAME` | Report name string sent with graduate requests. |
+
+5. **Stop containers** (keeps database data in the Docker volume):
+
+   ```bash
+   docker compose down
+   ```
+
+#### Running `manage.py` on your Mac vs inside Docker
+
+Compose sets **`POSTGRES_HOST=db`**, which is the **Postgres service name on the Docker network**. It only resolves **inside** containers (e.g. the `backend` container). If you run `python3 manage.py …` from your laptop in `backend/`, Django will try to connect to host `db` and fail with a DNS error.
+
+- **Recommended:** run Django commands through the backend container, as above (`docker compose exec backend python manage.py …`).
+- **If you use a local venv** on the host, point Django at the published port: set **`POSTGRES_HOST=127.0.0.1`**, **`POSTGRES_PORT=5433`**, and the same **`POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD`** as in `docker-compose.yml`, with **`docker compose up -d`** running so Postgres is listening.
+
+On macOS, use **`python3`** if the `python` command is not installed.
 
 ---
 
@@ -457,7 +469,7 @@ docker compose down
 |------------|--------------------------|------------------|----------------------------|
 | Frontend   | http://localhost:5174    | frontend:5174    | React/Vite Dev Server      |
 | Backend    | http://localhost:8000    | backend:8000     | Django REST API            |
-| Database   | localhost:5432           | db:5432          | PostgreSQL Instance        |
+| Database   | localhost:5433           | db:5432          | PostgreSQL (host maps 5433 → container 5432) |
 
 ---
 
@@ -476,26 +488,9 @@ docker compose up --build
 
 ---
 
-## 🧪 Running Tests & Coverage
-
-All tests are located in the `tests/` folder inside the backend.
-
-### Steps
-
-```bash
-cd backend
-python manage.py test tests
-coverage run manage.py test tests
-coverage report
-coverage html
-```
-
-
-
 ## Notes
 
 - Data is persisted via Docker volumes.
-- The **frontend** container keeps `node_modules` in a Docker volume. After pulling changes that add npm packages, **rebuild or restart the frontend** so it runs `npm install` on start (or run `docker compose exec frontend npm install` once).
 - Avoid running `docker compose down -v` unless you want to wipe the database.
 - If containers fail to start, try:
 
@@ -537,6 +532,8 @@ This structure ensures accountability through Jira tracking, improves collaborat
 
   ```bash
   docker compose up --build
+  ```
+
 ---
 
 ## Coding Standards and Guidelines
