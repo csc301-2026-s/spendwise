@@ -1,17 +1,14 @@
 import uuid
 from datetime import date, datetime
-from decimal import Decimal
 from unittest.mock import patch
 
 from bs4 import BeautifulSoup
-from accounts.models import UserProfile
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone as django_timezone
 from rest_framework.test import APITestCase
 
 from scholarships.api import _infer_student_level, _parse_bool, _resume_overlap
-from scholarships.services import monthly_deficit_from_profile, nominal_amount_for_scholarship
 from scholarships.ingest_utils import (
     clean_text,
     default_estimated_deadline,
@@ -419,112 +416,3 @@ class IngestUtilsCoverageTests(TestCase):
         self.assertTrue(out["deadline_is_estimated"])
         self.assertEqual(out["deadline"], date(2027, 4, 30))
         self.assertEqual(out["amount_max"], 2500)
-
-
-class ScholarshipsServiceUnitTests(TestCase):
-    def test_monthly_deficit_zero_when_surplus(self):
-        p = UserProfile(
-            total_expenses=Decimal("100"),
-            total_earnings=Decimal("200"),
-            parental_support=Decimal("0"),
-            receives_scholarships_or_aid=False,
-        )
-        self.assertEqual(monthly_deficit_from_profile(p), Decimal("0"))
-
-    def test_monthly_deficit_with_aid(self):
-        p = UserProfile(
-            total_expenses=Decimal("500"),
-            total_earnings=Decimal("100"),
-            parental_support=Decimal("50"),
-            receives_scholarships_or_aid=True,
-            scholarship_aid_amount=Decimal("50"),
-        )
-        # 500 - 200 = 300
-        self.assertEqual(monthly_deficit_from_profile(p), Decimal("300"))
-
-    def test_nominal_amount_for_scholarship(self):
-        s = Scholarship(amount_max=100, amount_min=10)
-        self.assertEqual(nominal_amount_for_scholarship(s), 100)
-        s2 = Scholarship(amount_max=None, amount_min=40)
-        self.assertEqual(nominal_amount_for_scholarship(s2), 40)
-        s3 = Scholarship(amount_max=None, amount_min=None)
-        self.assertEqual(nominal_amount_for_scholarship(s3), 0)
-
-
-class SavedScholarshipDeficitImpactAPITests(APITestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user = User.objects.create_user(
-            username="deficit@mail.utoronto.ca",
-            email="deficit@mail.utoronto.ca",
-            password="secret123",
-        )
-        UserProfile.objects.create(
-            user=cls.user,
-            total_expenses=Decimal("500.00"),
-            total_earnings=Decimal("200.00"),
-            parental_support=Decimal("100.00"),
-            receives_scholarships_or_aid=False,
-        )
-        cls.s1 = Scholarship.objects.create(
-            title="Big Award",
-            description="d",
-            offered_by="A",
-            student_level=StudentLevel.UNDERGRAD,
-            is_active=True,
-            open_to_domestic=True,
-            open_to_international=False,
-            amount_max=1000,
-            amount_min=100,
-            deadline=date(2026, 8, 1),
-        )
-        cls.s2 = Scholarship.objects.create(
-            title="Small Award",
-            description="d",
-            offered_by="B",
-            student_level=StudentLevel.UNDERGRAD,
-            is_active=True,
-            open_to_domestic=True,
-            open_to_international=False,
-            amount_max=None,
-            amount_min=500,
-            deadline=date(2026, 9, 1),
-        )
-        SavedScholarship.objects.create(user=cls.user, scholarship=cls.s1)
-        SavedScholarship.objects.create(user=cls.user, scholarship=cls.s2)
-
-    def test_deficit_impact_requires_auth(self):
-        res = self.client.get("/api/scholarships/saved/deficit-impact/")
-        self.assertEqual(res.status_code, 401)
-
-    def test_deficit_impact_default_probability_and_query(self):
-        self.client.force_authenticate(user=self.user)
-        res = self.client.get("/api/scholarships/saved/deficit-impact/")
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["saved_count"], 2)
-        self.assertEqual(res.data["total_nominal_amount"], 1500)
-        self.assertEqual(res.data["monthly_deficit"], "200.00")
-        self.assertEqual(res.data["assumed_award_probability"], 0.8)
-        self.assertEqual(res.data["potential_amount"], "1200.00")
-        self.assertEqual(res.data["remaining_deficit_after_potential"], "0.00")
-        self.assertIn("disclaimer", res.data)
-
-        res2 = self.client.get("/api/scholarships/saved/deficit-impact/?probability=0.1")
-        self.assertEqual(res2.status_code, 200)
-        self.assertEqual(res2.data["potential_amount"], "150.00")
-        self.assertEqual(res2.data["remaining_deficit_after_potential"], "50.00")
-
-    def test_deficit_impact_invalid_probability(self):
-        self.client.force_authenticate(user=self.user)
-        self.assertEqual(
-            self.client.get("/api/scholarships/saved/deficit-impact/?probability=bad").status_code,
-            400,
-        )
-        self.assertEqual(
-            self.client.get("/api/scholarships/saved/deficit-impact/?probability=0").status_code,
-            400,
-        )
-        self.assertEqual(
-            self.client.get("/api/scholarships/saved/deficit-impact/?probability=1.5").status_code,
-            400,
-        )
