@@ -76,21 +76,25 @@ jobs:
         working-directory: ./backend
         run: python manage.py check
 
-    
       - name: Run tests with coverage
         working-directory: ./backend
         run: |
-          coverage run manage.py test
-          coverage report --fail-under=80
-
-     
+            coverage run manage.py test
+            coverage report --fail-under=80
+            coverage xml
+    
       - name: Generate coverage HTML
         working-directory: ./backend
         run: coverage html
-
-     
+    
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: backend/htmlcov
+    
+      - name: Add coverage to GitHub summary
+        working-directory: ./backend
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          coverage report >> $GITHUB_STEP_SUMMARY
