@@ -30,10 +30,6 @@ function toEditableProfile(storedProfile = DEFAULT_PROFILE, apiProfile = null) {
     ...scholarshipProfile,
     first_name: apiProfile?.first_name ?? "",
     last_name: apiProfile?.last_name ?? "",
-    estimated_annual_school_cost:
-      apiProfile?.estimated_annual_school_cost != null ? String(apiProfile.estimated_annual_school_cost) : "",
-    gpa: apiProfile?.gpa != null ? String(apiProfile.gpa) : "",
-    resume_summary: apiProfile?.resume_summary ?? "",
   };
 }
 
@@ -90,10 +86,6 @@ export default function EditProfile({ profile: initialProfile, apiProfile, onSav
         citizenship_status: form.citizenship,
         campus: form.campus,
         degree_type: form.degree_type,
-        estimated_annual_school_cost:
-          form.estimated_annual_school_cost === "" ? null : Number(form.estimated_annual_school_cost),
-        gpa: form.gpa === "" ? null : Number(form.gpa),
-        resume_summary: form.resume_summary || "",
       });
 
       onSave?.({
@@ -177,39 +169,6 @@ export default function EditProfile({ profile: initialProfile, apiProfile, onSav
               <option>Scarborough</option>
               <option>Mississauga</option>
             </select>
-          </div>
-          <div className="ep-field">
-            <label>Est. annual school cost ($)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.estimated_annual_school_cost ?? ""}
-              onChange={(e) => set("estimated_annual_school_cost", e.target.value)}
-              placeholder="Tuition, fees, housing, books (year)"
-            />
-          </div>
-          <div className="ep-field">
-            <label>GPA (optional)</label>
-            <input
-              type="number"
-              min="0"
-              max="4.5"
-              step="0.01"
-              value={form.gpa ?? ""}
-              onChange={(e) => set("gpa", e.target.value)}
-              placeholder="e.g. 3.70"
-            />
-          </div>
-          <div className="ep-field full" style={{ gridColumn: "1 / -1" }}>
-            <label>Resume summary (optional, for matching)</label>
-            <textarea
-              rows={3}
-              value={form.resume_summary || ""}
-              onChange={(e) => set("resume_summary", e.target.value)}
-              placeholder="A few lines: leadership, research, volunteering…"
-              style={{ width: "100%", resize: "vertical" }}
-            />
           </div>
         </div>
         <div className="ep-actions">

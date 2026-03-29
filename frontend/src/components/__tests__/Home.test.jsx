@@ -77,31 +77,6 @@ const makeHomeFetchMock = ({ totalExpenses = 200, previousExpenses = 100 } = {})
       return jsonResponse({ total_expenses: 0 });
     }
 
-    if (path === '/api/me/') return jsonResponse({ first_name: 'Test' });
-
-    if (path === '/api/profile/') {
-      return jsonResponse({
-        onboarding_completed: true,
-        citizenship_status: 'Domestic',
-        campus: 'St.George',
-        total_earnings: 100,
-        total_expenses: 50,
-        parental_support: 0,
-        degree_type: 'Undergrad',
-        expected_graduation: '2026',
-      });
-    }
-
-    if (path === '/api/scholarships/saved/stats/') {
-      return jsonResponse({
-        total_saved: 0,
-        by_status: {},
-        awarded: 0,
-        not_awarded: 0,
-        acceptance_rate: null,
-      });
-    }
-
     return jsonResponse({});
   });
 };
