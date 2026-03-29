@@ -314,6 +314,26 @@ Click "Investments" tile to access goal simulator where you:
 - Auto-rebalancing alerts when portfolio drifts from target allocations
 - Integration with actual brokerage APIs for live tracking
 
+Then you can open htmlcov/index.html to view the coverage report
+
+## 🌙 Accessibility: Dark Mode
+
+To improve accessibility, a **Dark Mode toggle** has been implemented for users who prefer low-light interfaces.
+
+### Features
+- 🌑 Reduces eye strain in low-light environments  
+- 🎯 Easily accessible via the navigation bar  
+- 👤 Located next to the profile button for quick access  
+
+### How to Use
+1. Navigate to the top navigation bar  
+2. Click the **Dark Mode toggle** next to the profile button  
+3. The interface will switch to a dark theme  
+
+### Notes
+- Designed for better usability and accessibility  
+- Enhances user experience during nighttime or prolonged usage  
+
 ## Summary
 
 SpendWise centralizes:
@@ -407,6 +427,7 @@ deactivate
 
 2. **Start containers** in the background:
 
+<<<<<<< HEAD
    ```bash
    docker compose up -d
    ```
@@ -423,6 +444,28 @@ deactivate
    docker compose exec backend python manage.py ingest_awardexplorer --level undergrad
    docker compose exec backend python manage.py ingest_awardexplorer --level grad
    ```
+=======
+```bash
+docker compose up -d --build
+```
+
+**Database migrations (run after containers are up, and again whenever you pull schema changes):**
+
+```bash
+docker compose exec backend python manage.py migrate
+```
+
+**Optional data sync (fresh DB or when you need catalog content):** not required on every restart if data already exists in the volume.
+
+```bash
+# UofT scholarship listings (undergrad by default; add --level grad for graduate catalog)
+docker compose exec backend python manage.py ingest_awardexplorer
+docker compose exec backend python manage.py ingest_awardexplorer --level grad
+
+# Student discount codes (SPC / UNiDAYS / Student Beans) for the Student Codes page
+docker compose exec backend python manage.py sync_student_codes
+```
+>>>>>>> origin
 
    Optional: prune overdue saved-scholarship rows without a full ingest:
 
@@ -473,9 +516,26 @@ docker compose up --build
 
 ---
 
+## 🧪 Running Tests & Coverage
+
+All tests are located in the `tests/` folder inside the backend.
+
+### Steps
+
+```bash
+cd backend
+python manage.py test tests
+coverage run manage.py test tests
+coverage report
+coverage html
+```
+
+
+
 ## Notes
 
 - Data is persisted via Docker volumes.
+- The **frontend** container keeps `node_modules` in a Docker volume. After pulling changes that add npm packages, **rebuild or restart the frontend** so it runs `npm install` on start (or run `docker compose exec frontend npm install` once).
 - Avoid running `docker compose down -v` unless you want to wipe the database.
 - If containers fail to start, try:
 

@@ -49,6 +49,10 @@ INSTALLED_APPS = [
     'transactions',
 ]
 
+# Allow a standalone test-only app to hold integration-style tests.
+if "test" in sys.argv and "project_tests" not in INSTALLED_APPS:
+    INSTALLED_APPS.append("project_tests")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -145,3 +149,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 PLAID_CLIENT_ID = os.environ.get('PLAID_CLIENT_ID', '')
 PLAID_SECRET = os.environ.get('PLAID_SECRET', '')
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True").lower() == "true"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "noreply@spendwise.local")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "SpendWise")
+EMAIL_VERIFICATION_CODE_TTL_MINUTES = int(os.environ.get("EMAIL_VERIFICATION_CODE_TTL_MINUTES", "10"))

@@ -57,14 +57,6 @@ const LogoutIcon = () => (
   </svg>
 );
 
-const TABS = [
-  { label: "Dashboard", path: "/home" },
-  { label: "Scholarships", path: "/scholarships" },
-  { label: "Transactions", path: "/transactions" },
-  { label: "Student Codes", path: "/student-codes" },
-  { label: "Investments", path: "/investing" },
-];
-
 const BugIcon = () => (
   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path d="M12 22v-4M12 18a2 2 0 0 1-2-2V8a2 2 0 0 1 4 0v8a2 2 0 0 1-2 2z"/>
@@ -72,6 +64,15 @@ const BugIcon = () => (
     <path d="M9 6a3 3 0 0 1 6 0"/>
   </svg>
 );
+
+const TABS = [
+  { label: "Dashboard",        path: "/home" },
+  { label: "Scholarships",     path: "/scholarships" },
+  { label: "Transactions",     path: "/transactions" },
+  { label: "Student Codes",    path: "/student-codes" },
+  { label: "Goal Planner",     path: "/investing" },
+  { label: "Portfolio Builder", path: "/investing/builder" },
+];
 
 export default function Navbar() {
   const navigate = useNavigate();

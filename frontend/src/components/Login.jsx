@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL, fetchProfile, setOnboardingComplete, setTokens } from "../utils/session";
+import { API_BASE_URL, hydrateSessionFromTokens } from "../utils/session";
 
 
 const MailIcon = () => (
@@ -63,18 +63,16 @@ export default function Login() {
       if (res.ok) {
         const access = data.access || data.token || data.key;
         const refresh = data.refresh;
-        setTokens({ access, refresh });
-        const profile = await fetchProfile(access);
-        setOnboardingComplete(Boolean(profile.onboarding_completed));
         setSuccess(true);
+        const destination = await hydrateSessionFromTokens({ access, refresh });
 
-        setTimeout(() => { navigate(profile.onboarding_completed ? "/home" : "/onboarding"); }, 900);
+        setTimeout(() => { navigate(destination); }, 900);
 
       } else {
         setError(data?.detail || data?.message || "Invalid email or password.");
       }
-    } catch {
-      setError("Network error. Please check your connection.");
+    } catch (err) {
+      setError(err?.message || "Network error. Please check your connection.");
     } finally { setLoading(false); }
   };
 

@@ -6,12 +6,16 @@ from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 
 from transactions.models import PlaidItem, Transaction
+from spending.models import RecurringMerchant
 
 
 def _to_decimal(value) -> Decimal:
     if isinstance(value, Decimal):
         return value
     return Decimal(str(value))
+
+def _merchant_key(value: str) -> str:
+    return " ".join(str(value or "").strip().lower().split()) or "unknown"
 
 
 class SpendingViewsetTests(APITestCase):
@@ -121,6 +125,20 @@ class SpendingViewsetTests(APITestCase):
             date=date(2026, 3, 3),
             category="Transit",
         )
+
+        # Approve recurring merchants (user presses "Yes" in UI)
+        for merchant_name in ["UBER EATS", "PRESTO", "NETFLIX"]:
+            RecurringMerchant.objects.update_or_create(
+                user=cls.user,
+                merchant_key=_merchant_key(merchant_name),
+                account_id="",
+                defaults={
+                    "merchant_name": merchant_name,
+                    "is_recurring": True,
+                    "dismissed_until": None,
+                    "dismissed_after": None,
+                },
+            )
 
     def setUp(self):
         self.client.force_authenticate(user=self.user)

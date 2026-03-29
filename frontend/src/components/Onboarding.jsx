@@ -98,7 +98,7 @@ export default function Onboarding() {
     }
 
     if (isBlank(form.total_earnings)) {
-      setError("Please enter your total earnings.");
+      setError("Please enter your monthly revenue.");
       return;
     }
 
@@ -234,8 +234,9 @@ export default function Onboarding() {
                   </div>
 
                   <div className="ob-field">
-                    <label className="ob-label" htmlFor="total_earnings">Earnings / total earnings</label>
+                    <label className="ob-label" htmlFor="total_earnings">Monthly revenue</label>
                     <input id="total_earnings" type="number" min="0" step="0.01" className="ob-input" value={form.total_earnings} onChange={(e) => setValue("total_earnings", e.target.value)} placeholder="$0.00" />
+                    <div className="ob-help">Use the amount you typically bring in each month from work, stipends, or other income.</div>
                   </div>
 
                   <div className="ob-field">
