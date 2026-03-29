@@ -1,27 +1,41 @@
 import requests
 from bs4 import BeautifulSoup
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from scholarships.ingest_utils import clean_text, parse_grad_cells, parse_undergrad_cells
+from scholarships.ingest_utils import (
+    deactivate_stale_scholarships,
+    parse_undergrad_cells,
+    prune_overdue_saved_scholarships,
+    resolve_deadline_for_ingest,
+)
 from scholarships.models import Scholarship, StudentLevel
 
 MAX_PAGES = 250
 
-LEVEL_CONFIG = {
-    "undergrad": {
-        "base_url": "https://awardexplorer.utoronto.ca/undergrad",
-        "reportid": "46862",
-        "reportname": "Award Explorer | Undergraduate | University of Toronto",
-    },
-    "grad": {
-        "base_url": "https://awardexplorer.utoronto.ca/grad",
-        "reportid": "46864",
-        "reportname": "Award Explorer | Graduate | University of Toronto",
-    },
-}
 
-POST_URL = "https://uoftscholarships.smartsimple.com/ex/ex_openreport.jsp"
+def _level_config():
+    """Build per-level ingest config from Django settings (env-overridable)."""
+    return {
+        "undergrad": {
+            "base_url": settings.AWARD_EXPLORER_UNDERGRAD_BASE_URL,
+            "reportid": str(settings.AWARD_EXPLORER_UNDERGRAD_REPORT_ID),
+            "reportname": settings.AWARD_EXPLORER_UNDERGRAD_REPORT_NAME,
+            "student_level": StudentLevel.UNDERGRAD,
+        },
+        "grad": {
+            "base_url": settings.AWARD_EXPLORER_GRAD_BASE_URL,
+            "reportid": str(settings.AWARD_EXPLORER_GRAD_REPORT_ID),
+            "reportname": settings.AWARD_EXPLORER_GRAD_REPORT_NAME,
+            "student_level": StudentLevel.GRAD,
+        },
+    }
+
+
+def parse_row_cells(cells):
+    """Parse table row into field dict; returns None if row too short."""
+    return parse_undergrad_cells(cells)
 
 
 class Command(BaseCommand):
@@ -30,32 +44,45 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--level",
-            choices=("undergrad", "grad"),
+            choices=["undergrad", "grad"],
             default="undergrad",
-            help="Which catalog to ingest (default: undergrad). Graduate rows use an 8-column HTML layout.",
+            help="Which Award Explorer catalog to ingest (default: undergrad).",
+        )
+        parser.add_argument(
+            "--no-cleanup",
+            action="store_true",
+            help="Skip deactivating stale rows and pruning overdue saved scholarships.",
+        )
+        parser.add_argument(
+            "--prune-grace-days",
+            type=int,
+            default=21,
+            help="Days after deadline before pruning saved/in_progress items (default: 21).",
         )
 
     def handle(self, *args, **options):
         level_key = options["level"]
-        cfg = LEVEL_CONFIG[level_key]
-        student_level = StudentLevel.UNDERGRAD if level_key == "undergrad" else StudentLevel.GRAD
-        parse_row = parse_undergrad_cells if level_key == "undergrad" else parse_grad_cells
+        cfg = _level_config()[level_key]
+        student_level = cfg["student_level"]
+        no_cleanup = options["no_cleanup"]
+        grace_days = options["prune_grace_days"]
 
         session = requests.Session()
-        self.stdout.write(f"Fetching main page ({level_key})...")
+        self.stdout.write(f"Fetching {cfg['base_url']}...")
         response = session.get(cfg["base_url"], timeout=20)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
-        token_el = soup.find("input", {"name": "token"})
-        if not token_el or not token_el.get("value"):
-            self.stderr.write(self.style.ERROR("Could not read form token from Award Explorer."))
+        token_input = soup.find("input", {"name": "token"})
+        if not token_input or not token_input.get("value"):
+            self.stderr.write("Could not find token on Award Explorer page.")
             return
-        token = token_el["value"]
+        token = token_input["value"]
 
+        run_started_at = timezone.now()
         created_count = 0
         updated_count = 0
         page = 1
         seen_signatures = set()
-        seen_ids: list = []
 
         while page <= MAX_PAGES:
             self.stdout.write(f"Scraping page {page}...")
@@ -84,17 +111,17 @@ class Command(BaseCommand):
                 "sortdirection": "asc",
             }
 
-            result = session.post(POST_URL, data=data, timeout=30)
+            result = session.post(settings.AWARD_EXPLORER_POST_URL, data=data, timeout=30)
+            result.raise_for_status()
             soup = BeautifulSoup(result.text, "html.parser")
             rows = soup.select("tbody#x-body tr")
 
             if not rows:
                 break
 
-            first_title = clean_text(rows[0].find_all("td")[0].get_text(strip=True))
-            last_title = clean_text(rows[-1].find_all("td")[0].get_text(strip=True))
+            first_title = rows[0].find_all("td")[0].get_text(strip=True)
+            last_title = rows[-1].find_all("td")[0].get_text(strip=True)
             sig = (first_title, last_title)
-
             if sig in seen_signatures:
                 self.stdout.write("Reached repeated page content: stopping.")
                 break
@@ -102,49 +129,52 @@ class Command(BaseCommand):
 
             for row in rows:
                 cells = row.find_all("td")
-                parsed = parse_row(cells)
+                parsed = parse_row_cells(cells)
                 if not parsed:
                     continue
 
-                title = parsed["title"]
-                if not title:
-                    continue
-
-                defaults = {
-                    "source": "UOFT_AWARD_EXPLORER",
-                    "description": parsed["description"],
-                    "url": parsed["url"],
-                    "award_type": parsed["award_type"],
-                    "open_to_domestic": parsed["open_to_domestic"],
-                    "open_to_international": parsed["open_to_international"],
-                    "nature_academic_merit": parsed["nature_academic_merit"],
-                    "nature_athletic_performance": parsed["nature_athletic_performance"],
-                    "nature_community": parsed["nature_community"],
-                    "nature_financial_need": parsed["nature_financial_need"],
-                    "nature_leadership": parsed["nature_leadership"],
-                    "nature_indigenous": parsed["nature_indigenous"],
-                    "nature_black_students": parsed["nature_black_students"],
-                    "nature_extracurriculars": parsed["nature_extracurriculars"],
-                    "nature_other": parsed["nature_other"],
-                    "application_required": parsed["application_required"],
-                    "application_url": parsed["application_url"],
-                    "amount_text": parsed["amount_text"],
-                    "amount_min": parsed["amount_min"],
-                    "amount_max": parsed["amount_max"],
-                    "deadline": parsed["deadline"],
-                    "deadline_is_estimated": parsed["deadline_is_estimated"],
-                    "last_seen_at": timezone.now(),
-                    "is_active": True,
-                }
-
-                scholarship, created = Scholarship.objects.update_or_create(
-                    title=title,
+                existing = Scholarship.objects.filter(
+                    title=parsed["title"],
                     offered_by=parsed["offered_by"],
                     student_level=student_level,
-                    defaults=defaults,
+                ).first()
+                dl, est = resolve_deadline_for_ingest(
+                    parsed["deadline_parsed"], existing
                 )
 
-                seen_ids.append(scholarship.id)
+                _, created = Scholarship.objects.update_or_create(
+                    title=parsed["title"],
+                    offered_by=parsed["offered_by"],
+                    student_level=student_level,
+                    defaults={
+                        "source": "UOFT_AWARD_EXPLORER",
+                        "description": parsed["description"],
+                        "url": parsed["url"],
+                        "award_type": parsed["award_type"],
+                        "open_to_domestic": parsed["open_to_domestic"],
+                        "open_to_international": parsed["open_to_international"],
+                        "nature_academic_merit": parsed["nature_academic_merit"],
+                        "nature_athletic_performance": parsed[
+                            "nature_athletic_performance"
+                        ],
+                        "nature_community": parsed["nature_community"],
+                        "nature_financial_need": parsed["nature_financial_need"],
+                        "nature_leadership": parsed["nature_leadership"],
+                        "nature_indigenous": parsed["nature_indigenous"],
+                        "nature_black_students": parsed["nature_black_students"],
+                        "nature_extracurriculars": parsed["nature_extracurriculars"],
+                        "nature_other": parsed["nature_other"],
+                        "application_required": parsed["application_required"],
+                        "application_url": parsed["application_url"],
+                        "amount_text": parsed["amount_text"],
+                        "amount_min": parsed["amount_min"],
+                        "amount_max": parsed["amount_max"],
+                        "deadline": dl,
+                        "deadline_is_estimated": est,
+                        "last_seen_at": timezone.now(),
+                        "is_active": True,
+                    },
+                )
                 if created:
                     created_count += 1
                 else:
@@ -152,30 +182,21 @@ class Command(BaseCommand):
 
             page += 1
 
-        if seen_ids:
-            stale_n = (
-                Scholarship.objects.filter(student_level=student_level)
-                .exclude(pk__in=seen_ids)
-                .update(is_active=False)
-            )
-            if stale_n:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"Marked {stale_n} scholarship(s) inactive (not in latest catalog)."
-                    )
-                )
-        else:
-            self.stdout.write(
-                self.style.WARNING(
-                    "No rows ingested — skipping inactive sweep so existing catalog entries stay active."
-                )
-            )
-
         if page > MAX_PAGES:
             self.stdout.write("Hit MAX_PAGES safety cap: stopped.")
+
+        stale_count = 0
+        pruned_count = 0
+        if not no_cleanup:
+            stale_count = deactivate_stale_scholarships(student_level, run_started_at)
+            pruned_count = prune_overdue_saved_scholarships(grace_days=grace_days)
+            self.stdout.write(
+                f"Cleanup: deactivated {stale_count} stale rows for level={student_level}; "
+                f"pruned {pruned_count} overdue saved scholarships (grace={grace_days}d)."
+            )
+
         self.stdout.write(
             self.style.SUCCESS(
-                f"Done ({level_key}). Created: {created_count}, Updated: {updated_count}, "
-                f"Catalog rows seen: {len(seen_ids)}"
+                f"Done ({level_key}). Created: {created_count}, Updated: {updated_count}"
             )
         )

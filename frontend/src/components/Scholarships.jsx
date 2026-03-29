@@ -1,8 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { fetchProfile } from "../utils/session";
-import { buildFinancialSnapshot, coverageAmount, coveragePercent, scholarshipAwardAmount } from "../utils/financialSnapshot";
 import Navbar from "./Navbar";
 import UpcomingDeadlines from "./UpcomingDeadlines";
 
@@ -41,10 +39,6 @@ const ClockIcon = () => (
 const DEFAULT_PROFILE = {
   faculty: "", major: "", year: 1,
   degree_type: "Undergrad", citizenship: "Domestic", campus: "St.George",
-  receives_scholarships_or_aid: false,
-  gpa: null,
-  resume_summary: "",
-  student_level: "undergrad",
 };
 
 function loadProfile() {
@@ -71,39 +65,13 @@ function formatDeadline(dateStr) {
   return new Date(dateStr).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function buildMatchPayload(profile) {
-  const deg = profile.degree_type || "Undergrad";
-  const student_level = profile.student_level || (deg === "Postgrad" ? "grad" : "undergrad");
-  const payload = {
-    faculty: profile.faculty,
-    major: profile.major,
-    year: profile.year,
-    degree_type: deg,
-    citizenship: profile.citizenship,
-    campus: profile.campus,
-    student_level: student_level,
-    financial_need: Boolean(profile.receives_scholarships_or_aid),
-  };
-  if (profile.gpa != null && profile.gpa !== "") payload.gpa = Number(profile.gpa);
-  if (profile.resume_summary) payload.resume_summary = profile.resume_summary;
-  return payload;
-}
-
-const STATUS_LABELS = {
-  saved: "Saved",
-  in_progress: "In Progress",
-  submitted: "Submitted",
-  awarded: "Awarded",
-  not_awarded: "Not awarded",
-};
+const STATUS_LABELS = { saved: "Saved", in_progress: "In Progress", submitted: "Submitted" };
 
 // ── Sub-components ──
-function ScholarshipCard({ s, score, reasons, eligible, isSaved, onSave, onUnsave, status, deficit }) {
+function ScholarshipCard({ s, score, reasons, isSaved, onSave, onUnsave, status }) {
   const amt = formatAmount(s);
   const days = daysUntil(s.deadline);
   const isUrgent = days !== null && days <= 14;
-  const coveredAmount = coverageAmount(deficit, scholarshipAwardAmount(s));
-  const coveredPercent = coveragePercent(deficit, coveredAmount);
 
   const handleBookmarkClick = () => {
     if (isSaved) onUnsave?.(s.id);
@@ -157,7 +125,6 @@ function ScholarshipCard({ s, score, reasons, eligible, isSaved, onSave, onUnsav
           <span className={`sc-deadline ${!isUrgent ? "sc-deadline-gray" : ""}`}>
             {isUrgent ? <ClockIcon /> : <CalendarIcon />}
             Deadline: {formatDeadline(s.deadline)}
-            {s.deadline_is_estimated ? " (estimated)" : ""}
             {days !== null && days >= 0 && ` (${days} days left)`}
           </span>
         ) : (
@@ -170,29 +137,13 @@ function ScholarshipCard({ s, score, reasons, eligible, isSaved, onSave, onUnsav
 
       {score !== undefined && (
         <div className="sc-score-bar">
-          <span className="sc-score-label">
-            Match {Math.round(score * 100)}%
-            {eligible === false && " · exploratory"}
-            {eligible === true && " · strong fit"}
-          </span>
+          <span className="sc-score-label">Match {Math.round(score * 100)}%</span>
           <div className="sc-score-track">
             <div className="sc-score-fill" style={{ width: `${score * 100}%` }} />
           </div>
           {reasons?.length > 0 && (
             <span style={{ fontSize: "0.72rem", color: "var(--sw-text-muted)" }}>{reasons[0]}</span>
           )}
-        </div>
-      )}
-
-      {deficit > 0 && coveredAmount > 0 && (
-        <div className="sc-score-bar" style={{ marginTop: "0.8rem" }}>
-          <span className="sc-score-label">Can cover ${coveredAmount.toLocaleString()} of your deficit</span>
-          <div className="sc-score-track">
-            <div className="sc-score-fill" style={{ width: `${coveredPercent}%` }} />
-          </div>
-          <span style={{ fontSize: "0.72rem", color: "var(--sw-text-muted)" }}>
-            Estimated coverage: {coveredPercent}% of your current monthly deficit
-          </span>
         </div>
       )}
     </div>
@@ -214,14 +165,12 @@ export default function Scholarships() {
   const [savedIds, setSavedIds]          = useState(new Set());
   const [toast, setToast]                = useState(null);
   const toastTimerRef = useRef(null);
-  const financialSnapshot = useMemo(() => buildFinancialSnapshot(profile), [profile]);
 
   // filters
   const [q, setQ]                               = useState("");
   const [sortBy, setSortBy]                     = useState("title");
   const [filterCitizenship, setFilterCitizenship] = useState("");
   const [filterAwardType, setFilterAwardType]   = useState("");
-  const [filterStudentLevel, setFilterStudentLevel] = useState("undergrad");
 
   const PAGE_SIZE = 20;
 
@@ -291,13 +240,6 @@ export default function Scholarships() {
     fetchSavedScholarships();
   }, [fetchSavedScholarships]);
 
-  useEffect(() => {
-    if (!getAccessToken()) return;
-    fetchProfile()
-      .then((nextProfile) => setProfile((current) => ({ ...current, ...nextProfile })))
-      .catch((err) => { console.error("Failed to fetch profile:", err); });
-  }, []);
-
   // ── Save / Unsave ──
   const handleSave = async (id) => {
     if (!getAccessToken()) return;
@@ -338,7 +280,6 @@ export default function Scholarships() {
       if (sortBy)            params.set("sort", sortBy);
       if (filterCitizenship) params.set("citizenship", filterCitizenship);
       if (filterAwardType)   params.set("award_type", filterAwardType);
-      if (filterStudentLevel) params.set("student_level", filterStudentLevel);
 
       const res = await fetch(`${API}/scholarships/?${params}`);
       const data = await res.json();
@@ -347,7 +288,7 @@ export default function Scholarships() {
     } catch (e) {
       console.error(e);
     } finally { setLoading(false); }
-  }, [page, q, sortBy, filterCitizenship, filterAwardType, filterStudentLevel]);
+  }, [page, q, sortBy, filterCitizenship, filterAwardType]);
 
   // ── Fetch match ──
   const fetchMatch = useCallback(async () => {
@@ -356,7 +297,7 @@ export default function Scholarships() {
       const res = await fetch(`${API}/scholarships/match/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildMatchPayload(profile)),
+        body: JSON.stringify(profile),
       });
       const data = await res.json();
       setMatchResults(data);
@@ -372,16 +313,11 @@ export default function Scholarships() {
   }, [onlyMatched, viewSavedOnly, fetchScholarships, fetchMatch]);
 
   // reset page on filter change
-  useEffect(() => { setPage(1); }, [q, sortBy, filterCitizenship, filterAwardType, filterStudentLevel, onlyMatched]);
+  useEffect(() => { setPage(1); }, [q, sortBy, filterCitizenship, filterAwardType, onlyMatched]);
 
   const displayList = (() => {
     if (onlyMatched && matchResults?.length) {
-      const mapped = matchResults.map((r) => ({
-        ...r.scholarship,
-        _score: r.score,
-        _reasons: r.reasons,
-        _eligible: r.eligible,
-      }));
+      const mapped = matchResults.map((r) => ({ ...r.scholarship, _score: r.score, _reasons: r.reasons }));
       return [...mapped].sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
     }
     if (viewSavedOnly) {
@@ -423,7 +359,6 @@ export default function Scholarships() {
                   ["Degree",   profile.degree_type],
                   ["Status",   profile.citizenship],
                   ["Campus",   profile.campus],
-                  ["Deficit", financialSnapshot.deficit > 0 ? `$${financialSnapshot.deficit.toLocaleString()}` : "—"],
                 ].map(([label, value]) => (
                   <div className="sc-profile-field" key={label}>
                     <div className="sc-profile-field-label">{label}</div>
@@ -483,19 +418,6 @@ export default function Scholarships() {
 
               <div className="sc-divider" />
 
-              <select
-                className="sc-select"
-                value={filterStudentLevel}
-                onChange={(e) => setFilterStudentLevel(e.target.value)}
-                disabled={onlyMatched}
-                title={onlyMatched ? "Match uses your profile degree (Undergrad vs Postgrad)" : ""}
-              >
-                <option value="undergrad">Undergraduate catalog</option>
-                <option value="grad">Graduate catalog</option>
-              </select>
-
-              <div className="sc-divider" />
-
               <div className="sc-toggle-wrap" onClick={() => setOnlyMatched((v) => !v)}>
                 Match to my profile
                 <div className={`sc-toggle ${onlyMatched ? "on" : ""}`} />
@@ -540,8 +462,6 @@ export default function Scholarships() {
                   s={s}
                   score={s._score}
                   reasons={s._reasons}
-                  eligible={s._eligible}
-                  deficit={financialSnapshot.deficit}
                   isSaved={savedIds.has(s.id)}
                   status={savedStatusMap[s.id]}
                   onSave={handleSave}

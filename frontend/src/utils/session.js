@@ -13,15 +13,6 @@ const DEFAULT_PROFILE = {
   degree_type: "Undergrad",
   citizenship: "Domestic",
   campus: "St.George",
-  total_earnings: 0,
-  total_expenses: 0,
-  parental_support: 0,
-  scholarship_aid_amount: 0,
-  receives_scholarships_or_aid: false,
-  estimated_annual_school_cost: null,
-  net_annual_cost_after_aid: null,
-  gpa: null,
-  resume_summary: "",
 };
 
 export function getToken() {
@@ -106,78 +97,21 @@ export function profileToScholarshipProfile(profile = {}) {
   } catch {
     // ignore
   }
-  const deg = profile.degree_type || existing.degree_type || DEFAULT_PROFILE.degree_type;
-  const student_level =
-    profile.student_level || (deg === "Postgrad" ? "grad" : "undergrad");
-
   return {
     ...DEFAULT_PROFILE,
     ...existing,
     faculty: profile.faculty || existing.faculty || DEFAULT_PROFILE.faculty,
     major: profile.major || existing.major || DEFAULT_PROFILE.major,
     year: profile.year ?? existing.year ?? DEFAULT_PROFILE.year,
-    degree_type: deg,
+    degree_type: profile.degree_type || existing.degree_type || DEFAULT_PROFILE.degree_type,
     citizenship: profile.citizenship_status || existing.citizenship || DEFAULT_PROFILE.citizenship,
     campus: profile.campus || existing.campus || DEFAULT_PROFILE.campus,
-    total_earnings: profile.total_earnings ?? existing.total_earnings ?? DEFAULT_PROFILE.total_earnings,
-    total_expenses: profile.total_expenses ?? existing.total_expenses ?? DEFAULT_PROFILE.total_expenses,
-    parental_support: profile.parental_support ?? existing.parental_support ?? DEFAULT_PROFILE.parental_support,
-    scholarship_aid_amount:
-      profile.scholarship_aid_amount ?? existing.scholarship_aid_amount ?? DEFAULT_PROFILE.scholarship_aid_amount,
-    receives_scholarships_or_aid:
-      profile.receives_scholarships_or_aid ?? existing.receives_scholarships_or_aid ?? DEFAULT_PROFILE.receives_scholarships_or_aid,
-    estimated_annual_school_cost:
-      profile.estimated_annual_school_cost ?? existing.estimated_annual_school_cost ?? DEFAULT_PROFILE.estimated_annual_school_cost,
-    net_annual_cost_after_aid:
-      profile.net_annual_cost_after_aid ?? existing.net_annual_cost_after_aid ?? DEFAULT_PROFILE.net_annual_cost_after_aid,
-    gpa: profile.gpa ?? existing.gpa ?? DEFAULT_PROFILE.gpa,
-    resume_summary: profile.resume_summary ?? existing.resume_summary ?? DEFAULT_PROFILE.resume_summary,
-    student_level,
   };
 }
 
 export function hydrateProfile(profile = {}) {
   setOnboardingComplete(Boolean(profile.onboarding_completed));
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profileToScholarshipProfile(profile)));
-}
-
-export async function hydrateSessionFromTokens({ access, refresh } = {}) {
-  setTokens({ access, refresh });
-  setOnboardingComplete(false);
-
-  let destination = "/onboarding";
-  try {
-    const profile = await fetchProfile(access);
-    setOnboardingComplete(Boolean(profile.onboarding_completed));
-    destination = profile.onboarding_completed ? "/home" : "/onboarding";
-  } catch {
-    // Keep successful auth moving even if profile hydration fails.
-  }
-
-  return destination;
-}
-
-async function readResponseBody(res) {
-  const text = await res.text();
-  if (!text) return null;
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-}
-
-function extractApiMessage(data, fallback) {
-  if (!data) return fallback;
-  if (typeof data === "string") return data;
-  if (typeof data === "object") {
-    const firstKey = Object.keys(data)[0];
-    if (!firstKey) return fallback;
-    const value = data[firstKey];
-    return Array.isArray(value) ? value[0] : value;
-  }
-  return fallback;
 }
 
 export async function fetchProfile(token = getToken()) {
@@ -190,16 +124,11 @@ export async function fetchProfile(token = getToken()) {
     throw new Error("Session expired. Please log in again.");
   }
 
-  const data = await readResponseBody(res);
-
   if (!res.ok) {
-    throw new Error(extractApiMessage(data, "Unable to load your profile."));
-  }
-
-  if (!data || typeof data !== "object") {
     throw new Error("Unable to load your profile.");
   }
 
+  const data = await res.json();
   hydrateProfile(data);
   return data;
 }
@@ -218,13 +147,13 @@ export async function saveProfile(payload, token = getToken()) {
     throw new Error("Session expired. Please log in again.");
   }
 
-  const data = await readResponseBody(res);
+  const data = await res.json();
   if (!res.ok) {
-    throw new Error(extractApiMessage(data, "Unable to save your onboarding details."));
-  }
-
-  if (!data || typeof data !== "object") {
-    throw new Error("Unable to save your onboarding details.");
+    const firstKey = typeof data === "object" ? Object.keys(data)[0] : null;
+    const message = firstKey
+      ? Array.isArray(data[firstKey]) ? data[firstKey][0] : data[firstKey]
+      : "Unable to save your onboarding details.";
+    throw new Error(message);
   }
 
   hydrateProfile(data);

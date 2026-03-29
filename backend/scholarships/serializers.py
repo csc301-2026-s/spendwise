@@ -1,6 +1,5 @@
 from rest_framework import serializers
-
-from .models import SavedScholarship, Scholarship, StudentLevel
+from .models import Scholarship, SavedScholarship
 
 
 class ScholarshipListSerializer(serializers.ModelSerializer):
@@ -98,10 +97,10 @@ class MatchRequestSerializer(serializers.Serializer):
     degree_type = serializers.CharField(required=False, allow_blank=True)
     citizenship = serializers.CharField(required=False, allow_blank=True)
     campus = serializers.CharField(required=False, allow_blank=True)
-    student_level = serializers.ChoiceField(choices=StudentLevel.choices, required=False)
-    gpa = serializers.FloatField(required=False, min_value=0.0, max_value=4.5)
+    student_level = serializers.CharField(required=False, allow_blank=True)
+    gpa = serializers.DecimalField(max_digits=4, decimal_places=2, required=False, allow_null=True)
     resume_summary = serializers.CharField(required=False, allow_blank=True)
-    financial_need = serializers.BooleanField(required=False)
+    financial_need = serializers.BooleanField(required=False, default=False)
 
 
 class SavedScholarshipSerializer(serializers.ModelSerializer):
