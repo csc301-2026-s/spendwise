@@ -8,8 +8,8 @@ from django.test import TestCase
 from django.utils import timezone as django_timezone
 from rest_framework.test import APITestCase
 
-from .api import _infer_student_level, _parse_bool, _resume_overlap
-from .ingest_utils import (
+from scholarships.api import _infer_student_level, _parse_bool, _resume_overlap
+from scholarships.ingest_utils import (
     clean_text,
     default_estimated_deadline,
     parse_amount,
@@ -17,7 +17,7 @@ from .ingest_utils import (
     parse_nature_flags,
     parse_undergrad_cells,
 )
-from .models import AwardType, SavedScholarship, Scholarship, StudentLevel
+from scholarships.models import AwardType, SavedScholarship, Scholarship, StudentLevel
 
 User = get_user_model()
 
