@@ -22,6 +22,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
+            cd ../spendwise
             git pull origin dev
             docker compose down
             docker compose up -d --build

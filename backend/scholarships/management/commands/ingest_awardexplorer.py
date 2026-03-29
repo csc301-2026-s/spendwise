@@ -1,138 +1,41 @@
-import re
-from datetime import datetime
-
 import requests
 from bs4 import BeautifulSoup
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from scholarships.ingest_utils import (
     deactivate_stale_scholarships,
+    parse_undergrad_cells,
     prune_overdue_saved_scholarships,
     resolve_deadline_for_ingest,
 )
 from scholarships.models import Scholarship, StudentLevel
 
 MAX_PAGES = 250
-POST_URL = "https://uoftscholarships.smartsimple.com/ex/ex_openreport.jsp"
-
-LEVEL_CONFIG = {
-    "undergrad": {
-        "base_url": "https://awardexplorer.utoronto.ca/undergrad",
-        "reportid": "46862",
-        "reportname": "Award Explorer | Undergraduate | University of Toronto",
-        "student_level": StudentLevel.UNDERGRAD,
-    },
-    "grad": {
-        "base_url": "https://awardexplorer.utoronto.ca/grad",
-        "reportid": "46864",
-        "reportname": "Award Explorer | Graduate | University of Toronto",
-        "student_level": StudentLevel.GRAD,
-    },
-}
 
 
-def clean_text(text):
-    if not text:
-        return text
-    return text.replace("\x00", "")
-
-
-def parse_amount(amount_text):
-    if not amount_text:
-        return None, None
-    numbers = [int(n.replace(",", "")) for n in re.findall(r"\d[\d,]*", amount_text)]
-    if not numbers:
-        return None, None
-    if len(numbers) == 1:
-        return numbers[0], numbers[0]
-    return min(numbers), max(numbers)
+def _level_config():
+    """Build per-level ingest config from Django settings (env-overridable)."""
+    return {
+        "undergrad": {
+            "base_url": settings.AWARD_EXPLORER_UNDERGRAD_BASE_URL,
+            "reportid": str(settings.AWARD_EXPLORER_UNDERGRAD_REPORT_ID),
+            "reportname": settings.AWARD_EXPLORER_UNDERGRAD_REPORT_NAME,
+            "student_level": StudentLevel.UNDERGRAD,
+        },
+        "grad": {
+            "base_url": settings.AWARD_EXPLORER_GRAD_BASE_URL,
+            "reportid": str(settings.AWARD_EXPLORER_GRAD_REPORT_ID),
+            "reportname": settings.AWARD_EXPLORER_GRAD_REPORT_NAME,
+            "student_level": StudentLevel.GRAD,
+        },
+    }
 
 
 def parse_row_cells(cells):
     """Parse table row into field dict; returns None if row too short."""
-    if len(cells) < 9:
-        return None
-
-    title = clean_text(cells[0].text.strip())
-
-    desc = cells[1].find(text=True, recursive=False)
-    if desc:
-        desc = clean_text(desc.strip())
-    else:
-        desc = clean_text(cells[1].text.strip())
-
-    offered_by = clean_text(cells[2].text.strip()) or None
-    award_type_raw = clean_text(cells[3].text.strip().lower())
-    award_type_map = {
-        "admission": "admissions",
-        "in-course": "in_course",
-        "graduating": "graduating",
-    }
-    award_type = award_type_map.get(award_type_raw, None)
-
-    url_tag = cells[1].find("a")
-    url = clean_text(url_tag["href"]) if url_tag else None
-
-    app_cell = clean_text(cells[5].text.strip())
-    app_tag = cells[5].find("a")
-    application_required = "yes" in app_cell.lower()
-    application_url = clean_text(app_tag["href"]) if app_tag else None
-
-    citizenship_raw = clean_text(cells[4].text.strip().lower())
-    open_to_domestic = "domestic" in citizenship_raw
-    open_to_international = "international" in citizenship_raw
-
-    nature_raw = clean_text(cells[6].text.strip().lower())
-    nature_academic_merit = "academic merit" in nature_raw
-    nature_athletic_performance = "athletic performance" in nature_raw
-    nature_community = "community" in nature_raw
-    nature_financial_need = "financial need" in nature_raw
-    nature_leadership = "leadership" in nature_raw
-    nature_indigenous = "indigenous" in nature_raw
-    nature_black_students = "black students" in nature_raw
-    nature_extracurriculars = (
-        "extra curriculars" in nature_raw or "extracurriculars" in nature_raw
-    )
-    nature_other = "other" in nature_raw
-
-    deadline_raw = clean_text(cells[7].text.strip())
-    deadline_parsed = None
-    if deadline_raw:
-        try:
-            deadline_parsed = datetime.strptime(
-                deadline_raw, "%Y-%m-%d %H:%M"
-            ).date()
-        except ValueError:
-            pass
-
-    amount_text = clean_text(cells[8].text.strip()) or None
-    amount_min, amount_max = parse_amount(amount_text)
-
-    return {
-        "title": title,
-        "description": desc,
-        "offered_by": offered_by,
-        "award_type": award_type,
-        "url": url,
-        "application_required": application_required,
-        "application_url": application_url,
-        "open_to_domestic": open_to_domestic,
-        "open_to_international": open_to_international,
-        "nature_academic_merit": nature_academic_merit,
-        "nature_athletic_performance": nature_athletic_performance,
-        "nature_community": nature_community,
-        "nature_financial_need": nature_financial_need,
-        "nature_leadership": nature_leadership,
-        "nature_indigenous": nature_indigenous,
-        "nature_black_students": nature_black_students,
-        "nature_extracurriculars": nature_extracurriculars,
-        "nature_other": nature_other,
-        "deadline_parsed": deadline_parsed,
-        "amount_text": amount_text,
-        "amount_min": amount_min,
-        "amount_max": amount_max,
-    }
+    return parse_undergrad_cells(cells)
 
 
 class Command(BaseCommand):
@@ -159,7 +62,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         level_key = options["level"]
-        cfg = LEVEL_CONFIG[level_key]
+        cfg = _level_config()[level_key]
         student_level = cfg["student_level"]
         no_cleanup = options["no_cleanup"]
         grace_days = options["prune_grace_days"]
@@ -208,7 +111,7 @@ class Command(BaseCommand):
                 "sortdirection": "asc",
             }
 
-            result = session.post(POST_URL, data=data, timeout=30)
+            result = session.post(settings.AWARD_EXPLORER_POST_URL, data=data, timeout=30)
             result.raise_for_status()
             soup = BeautifulSoup(result.text, "html.parser")
             rows = soup.select("tbody#x-body tr")

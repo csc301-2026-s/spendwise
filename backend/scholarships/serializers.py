@@ -98,6 +98,9 @@ class MatchRequestSerializer(serializers.Serializer):
     citizenship = serializers.CharField(required=False, allow_blank=True)
     campus = serializers.CharField(required=False, allow_blank=True)
     student_level = serializers.CharField(required=False, allow_blank=True)
+    gpa = serializers.DecimalField(max_digits=4, decimal_places=2, required=False, allow_null=True)
+    resume_summary = serializers.CharField(required=False, allow_blank=True)
+    financial_need = serializers.BooleanField(required=False, default=False)
 
 
 class SavedScholarshipSerializer(serializers.ModelSerializer):

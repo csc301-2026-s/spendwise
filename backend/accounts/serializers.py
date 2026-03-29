@@ -1,38 +1,107 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+from django.utils import timezone
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import UserProfile
+
+from .models import PendingRegistration, UserProfile
+from .services import (
+    generate_verification_code,
+    hash_verification_code,
+    is_valid_uoft_email,
+    normalize_uoft_email,
+    send_registration_verification_email,
+    verification_expiry,
+)
 
 User = get_user_model()
 
-class RegistrationSerializer(serializers.ModelSerializer):
+
+class RegistrationRequestSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
 
-    class Meta:
-        model = User
-        fields = ('email', 'first_name', 'last_name', 'password', 'password2')
-        extra_kwargs = {
-            'email': {'required': True},
-        }
+    def validate_email(self, value):
+        if not is_valid_uoft_email(value):
+            raise serializers.ValidationError(
+                "Use a UofT email address ending in @utoronto.ca or @mail.utoronto.ca."
+            )
+        normalized = normalize_uoft_email(value)
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+        return normalized
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
+        if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password": "Passwords didn't match."})
-        if User.objects.filter(email=attrs['email']).exists():
-            raise serializers.ValidationError({"email": "An account with this email already exists."})
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('password2')
-        user = User.objects.create_user(
-            username=validated_data['email'],
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            email=validated_data['email'],
-            password=validated_data['password']
+        validated_data.pop("password2", None)
+        email = validated_data["email"]
+        code = generate_verification_code()
+        PendingRegistration.objects.update_or_create(
+            email=email,
+            defaults={
+                "first_name": validated_data["first_name"],
+                "last_name": validated_data["last_name"],
+                "password_hash": make_password(validated_data["password"]),
+                "verification_code_hash": hash_verification_code(code),
+                "code_expires_at": verification_expiry(),
+            },
         )
-        return user
+        send_registration_verification_email(
+            email=email,
+            code=code,
+            first_name=validated_data["first_name"],
+        )
+        return validated_data
+
+
+class RegistrationVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6, min_length=6)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        return normalize_uoft_email(value)
+
+    def create_user(self):
+        email = self.validated_data["email"]
+        code = self.validated_data["code"]
+        password_plain = (self.validated_data.get("password") or "").strip()
+
+        user = User.objects.filter(email__iexact=email).first()
+        if user is not None:
+            if not password_plain:
+                raise serializers.ValidationError({"password": "Password is required."})
+            if not user.check_password(password_plain):
+                raise serializers.ValidationError({"password": "Invalid password."})
+            return user
+
+        try:
+            pending = PendingRegistration.objects.get(email=email)
+        except PendingRegistration.DoesNotExist:
+            raise serializers.ValidationError({"email": "No pending registration for this email."})
+
+        if pending.code_expires_at < timezone.now():
+            raise serializers.ValidationError({"code": "This code has expired. Request a new one."})
+        if pending.verification_code_hash != hash_verification_code(code):
+            raise serializers.ValidationError({"code": "Invalid verification code."})
+
+        new_user = User(
+            username=email,
+            email=email,
+            first_name=pending.first_name,
+            last_name=pending.last_name,
+        )
+        new_user.password = pending.password_hash
+        new_user.save()
+        pending.delete()
+        return new_user
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

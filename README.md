@@ -430,6 +430,21 @@ deactivate
    docker compose exec backend python manage.py scholarships_cleanup
    ```
 
+   **Saved scholarships vs monthly deficit (API for integrations):** `GET /api/scholarships/saved/deficit-impact/` (JWT required) returns the user’s profile-based **monthly deficit**, count and nominal dollar total of saved awards, a probability-weighted **potential** amount, and **remaining deficit** after that potential. Optional query: `?probability=0.8` (must be in `(0, 1]`; default from env below). Catalog award amounts are not normalized to monthly; the JSON `notes` and `disclaimer` fields explain that the figures are illustrative.
+
+   **Backend environment variables** (optional; see `backend/config/settings.py`):
+
+   | Variable | Purpose |
+   |----------|---------|
+   | `SCHOLARSHIP_ASSUMED_WIN_PROBABILITY` | Default probability for `potential_amount` when `probability` is omitted (default `0.8`). |
+   | `AWARD_EXPLORER_POST_URL` | POST endpoint for paginated Award Explorer export. |
+   | `AWARD_EXPLORER_UNDERGRAD_BASE_URL` | Undergrad catalog page URL. |
+   | `AWARD_EXPLORER_UNDERGRAD_REPORT_ID` | Report id for undergrad ingest. |
+   | `AWARD_EXPLORER_UNDERGRAD_REPORT_NAME` | Report name string sent with undergrad requests. |
+   | `AWARD_EXPLORER_GRAD_BASE_URL` | Graduate catalog page URL. |
+   | `AWARD_EXPLORER_GRAD_REPORT_ID` | Report id for graduate ingest. |
+   | `AWARD_EXPLORER_GRAD_REPORT_NAME` | Report name string sent with graduate requests. |
+
 5. **Stop containers** (keeps database data in the Docker volume):
 
    ```bash
