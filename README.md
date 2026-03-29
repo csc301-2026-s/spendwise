@@ -314,6 +314,26 @@ Click "Investments" tile to access goal simulator where you:
 - Auto-rebalancing alerts when portfolio drifts from target allocations
 - Integration with actual brokerage APIs for live tracking
 
+Then you can open htmlcov/index.html to view the coverage report
+
+## 🌙 Accessibility: Dark Mode
+
+To improve accessibility, a **Dark Mode toggle** has been implemented for users who prefer low-light interfaces.
+
+### Features
+- 🌑 Reduces eye strain in low-light environments  
+- 🎯 Easily accessible via the navigation bar  
+- 👤 Located next to the profile button for quick access  
+
+### How to Use
+1. Navigate to the top navigation bar  
+2. Click the **Dark Mode toggle** next to the profile button  
+3. The interface will switch to a dark theme  
+
+### Notes
+- Designed for better usability and accessibility  
+- Enhances user experience during nighttime or prolonged usage  
+
 ## Summary
 
 SpendWise centralizes:
@@ -470,7 +490,7 @@ coverage report
 coverage html
 ```
 
-Then you can open htmlcov/index.html to view the coverage report
+
 
 ## Notes
 
