@@ -26,10 +26,6 @@ export default function Profile() {
         citizenship_status: newProfile.citizenship,
         campus: newProfile.campus,
         degree_type: newProfile.degree_type,
-        estimated_annual_school_cost: newProfile.estimated_annual_school_cost,
-        gpa: newProfile.gpa,
-        resume_summary: newProfile.resume_summary,
-        net_annual_cost_after_aid: newProfile.net_annual_cost_after_aid,
       }));
     }
   };

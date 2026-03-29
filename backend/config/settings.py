@@ -158,3 +158,30 @@ EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True").lower() == "true"
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "noreply@spendwise.local")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "SpendWise")
 EMAIL_VERIFICATION_CODE_TTL_MINUTES = int(os.environ.get("EMAIL_VERIFICATION_CODE_TTL_MINUTES", "10"))
+
+# Scholarships: default assumed probability of receiving saved awards (illustrative deficit math).
+SCHOLARSHIP_ASSUMED_WIN_PROBABILITY = env.float("SCHOLARSHIP_ASSUMED_WIN_PROBABILITY", default=0.8)
+
+# Award Explorer ingest (override per environment without code changes).
+AWARD_EXPLORER_POST_URL = env(
+    "AWARD_EXPLORER_POST_URL",
+    default="https://uoftscholarships.smartsimple.com/ex/ex_openreport.jsp",
+)
+AWARD_EXPLORER_UNDERGRAD_BASE_URL = env(
+    "AWARD_EXPLORER_UNDERGRAD_BASE_URL",
+    default="https://awardexplorer.utoronto.ca/undergrad",
+)
+AWARD_EXPLORER_UNDERGRAD_REPORT_ID = env("AWARD_EXPLORER_UNDERGRAD_REPORT_ID", default="46862")
+AWARD_EXPLORER_UNDERGRAD_REPORT_NAME = env(
+    "AWARD_EXPLORER_UNDERGRAD_REPORT_NAME",
+    default="Award Explorer | Undergraduate | University of Toronto",
+)
+AWARD_EXPLORER_GRAD_BASE_URL = env(
+    "AWARD_EXPLORER_GRAD_BASE_URL",
+    default="https://awardexplorer.utoronto.ca/grad",
+)
+AWARD_EXPLORER_GRAD_REPORT_ID = env("AWARD_EXPLORER_GRAD_REPORT_ID", default="46864")
+AWARD_EXPLORER_GRAD_REPORT_NAME = env(
+    "AWARD_EXPLORER_GRAD_REPORT_NAME",
+    default="Award Explorer | Graduate | University of Toronto",
+)
