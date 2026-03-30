@@ -5,11 +5,13 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
+
 DYNAMIC_UNIVERSE = {
     "conservative": ["BND", "TLT", "SHY", "VTI", "AGG"],
     "balanced":     ["VTI", "VXUS", "BND", "QQQ", "VEA"],
     "growth":       ["QQQ", "VUG", "VTI", "IWM", "ARKK"],
 }
+
 
 ASSET_NAMES = {
     "BND":  ("Vanguard Total Bond Market ETF", "etf"),
@@ -25,6 +27,7 @@ ASSET_NAMES = {
     "ARKK": ("ARK Innovation ETF", "etf"),
 }
 
+
 ASSET_COLORS = {
     "BND":  "#4f86c6",
     "TLT":  "#6c5ce7",
@@ -38,6 +41,28 @@ ASSET_COLORS = {
     "IWM":  "#55efc4",
     "ARKK": "#d63031",
 }
+
+
+STOOQ_HEADERS = {"User-Agent": "Mozilla/5.0"}
+
+
+def stooq_fetch(symbol: str, retries: int = 2):
+    # ✅ FIX: Removed .us suffix — it breaks ETF lookups on Stooq
+    stooq_symbol = symbol.lower()
+
+    for attempt in range(retries + 1):
+        try:
+            r = requests.get(
+                "https://stooq.com/q/d/l/",
+                params={"s": stooq_symbol, "i": "d"},
+                timeout=10,
+                headers=STOOQ_HEADERS,
+            )
+            return r
+        except requests.exceptions.RequestException:
+            if attempt < retries:
+                time.sleep(1.5 * (attempt + 1))
+    return None
 
 
 def fetch_price_history(symbols, period="1y"):
@@ -55,18 +80,22 @@ def fetch_price_history(symbols, period="1y"):
     cutoff = pd.Timestamp.now() - pd.DateOffset(days=days)
 
     for symbol in symbols:
+        # ✅ FIX: Removed .us suffix here too
         stooq_symbol = symbol.lower()
-        if "." not in stooq_symbol:
-            stooq_symbol = f"{stooq_symbol}.us"
 
         try:
             r = requests.get(
                 "https://stooq.com/q/d/l/",
                 params={"s": stooq_symbol, "i": "d"},
                 timeout=15,
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers=STOOQ_HEADERS,
             )
-            if r.status_code != 200 or "No data" in r.text or len(r.text) < 50:
+            if (
+                r.status_code != 200
+                or "No data" in r.text
+                or "<html" in r.text.lower()
+                or len(r.text) < 50
+            ):
                 print(f"[fetch_price_history] No data for {symbol}")
                 continue
 
