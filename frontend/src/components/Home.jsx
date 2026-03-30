@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlaidLink } from "react-plaid-link";
-import { API_BASE_URL, authHeaders, fetchWithAuth } from "../utils/session";
+import { API_BASE_URL, authHeaders, fetchProfile, fetchWithAuth } from "../utils/session";
+import { buildFinancialSnapshot } from "../utils/financialSnapshot";
 import Navbar from "./Navbar";
 import UpcomingDeadlines from "./UpcomingDeadlines";
 
@@ -298,6 +299,8 @@ export default function Dashboard() {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalSavings, setTotalSavings] = useState(0);
+  const [financialProfile, setFinancialProfile] = useState({});
+  const [scholarshipStats, setScholarshipStats] = useState(null);
   const [deltaPct, setDeltaPct] = useState(0);
   const [monthlyDetail, setMonthlyDetail] = useState({
     transactions: 0,
@@ -316,6 +319,10 @@ export default function Dashboard() {
   const selectedBankName =
     selectedAccountId && bankAccounts.find((b) => b.id === selectedAccountId)?.name;
   const selectedBankNameShort = selectedBankName ? shortAccountLabel(selectedBankName) : "";
+  const financialSnapshot = useMemo(
+    () => buildFinancialSnapshot(financialProfile),
+    [financialProfile]
+  );
 
   const fetchBankAccounts = async () => {
     const accResp = await fetch(`${API_BASE_URL}/plaid/bank-accounts/`, { headers: { ...authHeaders() } });
@@ -374,6 +381,19 @@ export default function Dashboard() {
     fetchWithAuth(`${API_BASE_URL}/me/`).then((res) => {
       if (res.ok) res.json().then((data) => setFirstName(data?.first_name || ""));
     });
+  }, []);
+
+  useEffect(() => {
+    fetchProfile()
+      .then((profile) => setFinancialProfile(profile))
+      .catch(() => setFinancialProfile({}));
+  }, []);
+
+  useEffect(() => {
+    fetchWithAuth(`${API_BASE_URL}/scholarships/saved/stats/`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setScholarshipStats(data))
+      .catch(() => setScholarshipStats(null));
   }, []);
 
   useEffect(() => {
@@ -588,6 +608,62 @@ export default function Dashboard() {
               </div>
             </div>
 
+            <div className="card" style={{ marginTop: "0.8rem", marginBottom: "1rem", padding: "0.95rem 1rem" }}>
+              <div className="card-title">
+                <h2>Monthly Funding Snapshot</h2>
+              </div>
+              <div className="mini-grid">
+                <div className="mini-card">
+                  <p className="mini-title">Revenue</p>
+                  <p className="mini-value pos">${fmtMoney(financialSnapshot.revenue)}</p>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-title">Expenses</p>
+                  <p className="mini-value neg">${fmtMoney(financialSnapshot.expenses)}</p>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-title">Surplus</p>
+                  <p className={`mini-value ${financialSnapshot.surplus > 0 ? "pos" : ""}`}>
+                    ${fmtMoney(financialSnapshot.surplus)}
+                  </p>
+                </div>
+                <div className="mini-card">
+                  <p className="mini-title">Deficit</p>
+                  <p className={`mini-value ${financialSnapshot.deficit > 0 ? "neg" : ""}`}>
+                    ${fmtMoney(financialSnapshot.deficit)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {scholarshipStats && scholarshipStats.total_saved > 0 && (
+              <div className="card" style={{ marginTop: "0.8rem", marginBottom: "1rem", padding: "0.95rem 1rem" }}>
+                <div className="card-title">
+                  <h2>Scholarship pipeline</h2>
+                </div>
+                <p style={{ fontSize: "0.95rem", color: "var(--sw-text-muted)", marginBottom: "0.75rem" }}>
+                  {scholarshipStats.total_saved} saved in your tracker
+                  {scholarshipStats.awarded + scholarshipStats.not_awarded > 0 && (
+                    <>
+                      {" "}
+                      · {scholarshipStats.awarded} awarded, {scholarshipStats.not_awarded} not awarded
+                      {scholarshipStats.acceptance_rate != null && (
+                        <> ({Math.round(scholarshipStats.acceptance_rate * 100)}% of decided)</>
+                      )}
+                    </>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  className="link"
+                  style={{ fontWeight: 600, cursor: "pointer", background: "none", border: "none", padding: 0, color: "var(--sw-primary)" }}
+                  onClick={() => navigate("/my-scholarships")}
+                >
+                  Open My Scholarships →
+                </button>
+              </div>
+            )}
+
             <div className="actions">
               <QuickTile
                 icon={<ScholarshipIcon />}
@@ -602,20 +678,32 @@ export default function Dashboard() {
                 subtitle="Apply a discount code"
                 toneClass="tCodes"
                 onClick={() => navigate("/student-codes")}
-              /><QuickTile
+                />
+             <QuickTile
                 icon={<InvestmentsIcon />}
-                title="Your Investments"
-                subtitle="Your Monthly Investments"
+                title="Goal Planner"
+                subtitle="Plan & track your goals"
                 toneClass="tInvestment"
                 onClick={() => navigate("/investing")}
+              />
+              <QuickTile
+                icon={<InvestmentsIcon />}
+                title="Portfolio Builder"
+                subtitle="Build your investment portfolio"
+                toneClass="tInvestment"
+                onClick={() => navigate("/investing/builder")}
               />
 
             </div>
 
             <div className="insightCardSpacing">
               <InsightCard
-                title="Smart Insight"
-                message={`You could save about $${fmtMoney(totalSavings)} this month by reducing repeated spending patterns.`}
+                title={financialSnapshot.deficit > 0 ? "Funding Gap" : "Monthly Cushion"}
+                message={
+                  financialSnapshot.deficit > 0
+                    ? `Your current profile shows a monthly deficit of $${fmtMoney(financialSnapshot.deficit)}. Scholarships and investing views now estimate how much of that gap they can cover.`
+                    : `Your current profile shows a monthly surplus of $${fmtMoney(financialSnapshot.surplus)}. You could still save about $${fmtMoney(totalSavings)} this month by reducing repeated spending patterns.`
+                }
               />
             </div>
 
