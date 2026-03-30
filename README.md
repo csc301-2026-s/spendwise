@@ -2,7 +2,11 @@
 
 SpendWise is a centralized financial support platform built for University of Toronto students. As OSAP grants shrink and student debt rises, students need smarter, proactive tools — not more spreadsheets.
 
-> **Developers:** See [HANDOVER.md](./HANDOVER.md) for the full technical reference, including the complete API documentation, deployment guide, CI/CD setup, and maintenance procedures.
+## How to Use the Application
+
+Deployed the version through Digitial Ocean App
+
+https://spendwise.info/
 
 ---
 
