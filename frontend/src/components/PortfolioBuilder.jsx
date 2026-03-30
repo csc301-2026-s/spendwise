@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import Navbar from "./Navbar";
 import InstructionsModal from "./InstructionsModal";
+import { fetchWithAuth } from "../utils/session";
 
 const API_BASE = "/api";
 
@@ -172,6 +173,7 @@ export default function PortfolioBuilder() {
     if (holdings.length) sessionStorage.setItem("portfolioDraft", JSON.stringify(portfolioDraft));
   }, [holdings, portfolioDraft]);
 
+<<<<<<< HEAD
   // ✅ Called only when user clicks the button
   async function handleGenerateRecommendations() {
     try {
@@ -192,6 +194,25 @@ export default function PortfolioBuilder() {
       setRecsError("Failed to fetch recommendations. Check your connection.");
     } finally {
       setLoadingRecommendations(false);
+=======
+  useEffect(() => {
+    async function loadRecommendations() {
+      try {
+        setLoadingRecommendations(true);
+        const riskLevel = goalDraft?.riskLevel || "balanced";
+        const res = await fetchWithAuth(
+          `${API_BASE}/investments/recommendations/?risk_level=${encodeURIComponent(riskLevel)}`
+        );
+        if (!res.ok) { setRecommendations([]); return; }
+        const data = await res.json();
+        const raw = Array.isArray(data) ? data : data.results || [];
+        setRecommendations(normalizeScores(raw));
+      } catch {
+        setRecommendations([]);
+      } finally {
+        setLoadingRecommendations(false);
+      }
+>>>>>>> 42776f5 (x)
     }
   }
 
@@ -199,10 +220,17 @@ export default function PortfolioBuilder() {
     e?.preventDefault?.();
     if (!searchQuery.trim()) { setSearchResults([]); setSearchError(""); return; }
     try {
+<<<<<<< HEAD
       setSearching(true); setSearchError("");
       const res = await fetch(
         `${API_BASE}/investments/assets/search/?q=${encodeURIComponent(searchQuery.trim())}`,
         { headers: getAuthHeaders() }
+=======
+      setSearching(true);
+      setSearchError("");
+      const res = await fetchWithAuth(
+        `${API_BASE}/investments/assets/search/?q=${encodeURIComponent(searchQuery.trim())}`
+>>>>>>> 42776f5 (x)
       );
       if (!res.ok) throw new Error("Could not search assets.");
       const data = await res.json();
@@ -217,7 +245,9 @@ export default function PortfolioBuilder() {
   async function loadChart(symbol, period) {
     try {
       setChartLoading(true);
-      const res = await fetch(`${API_BASE}/investments/assets/chart/?symbol=${encodeURIComponent(symbol)}&period=${period}`, { headers: getAuthHeaders() });
+      const res = await fetchWithAuth(
+        `${API_BASE}/investments/assets/chart/?symbol=${encodeURIComponent(symbol)}&period=${period}`
+      );
       if (!res.ok) throw new Error();
       const data = await res.json();
       setAssetChart(Array.isArray(data.chart) ? data.chart : []);
@@ -235,8 +265,8 @@ export default function PortfolioBuilder() {
     try {
       setAssetLoading(true); setAssetError(""); setChartPeriod("1y");
       const [detailRes, chartRes] = await Promise.all([
-        fetch(`${API_BASE}/investments/assets/detail/?symbol=${encodeURIComponent(symbol)}`, { headers: getAuthHeaders() }),
-        fetch(`${API_BASE}/investments/assets/chart/?symbol=${encodeURIComponent(symbol)}&period=1y`, { headers: getAuthHeaders() }),
+        fetchWithAuth(`${API_BASE}/investments/assets/detail/?symbol=${encodeURIComponent(symbol)}`),
+        fetchWithAuth(`${API_BASE}/investments/assets/chart/?symbol=${encodeURIComponent(symbol)}&period=1y`),
       ]);
       if (!detailRes.ok) throw new Error("Could not load asset details.");
       const detailData = await detailRes.json();

@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import Navbar from "./Navbar";
 import InstructionsModal from "./InstructionsModal";
+import { fetchWithAuth } from "../utils/session";
 import { fetchProfile } from "../utils/session";
 import {
   buildFinancialSnapshot, coverageAmount, coveragePercent,
@@ -292,9 +293,12 @@ export default function GoalPlanner() {
       if (Math.abs(allocationTotal - 100) > 0.01)
         throw new Error(`Portfolio allocations must total 100% (currently ${allocationTotal.toFixed(1)}%).`);
 
-      const goalRes = await fetch(`${API_BASE}/investments/goals/`, {
+      const goalRes = await fetchWithAuth(`${API_BASE}/investments/goals/`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           goal_name: goalName.trim(),
           goal_type: goalType,
@@ -313,9 +317,12 @@ export default function GoalPlanner() {
 
       const createdGoal = await goalRes.json();
 
-      const portfolioRes = await fetch(`${API_BASE}/investments/portfolios/`, {
+      const portfolioRes = await fetchWithAuth(`${API_BASE}/investments/portfolios/`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           goal: createdGoal.id,
           portfolio_name: selectedPortfolio.name || "My Portfolio",
