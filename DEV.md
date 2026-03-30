@@ -216,6 +216,7 @@ docker compose exec backend python manage.py ingest_awardexplorer --level underg
 docker compose exec backend python manage.py ingest_awardexplorer --level grad
 docker compose exec backend python manage.py scholarships_cleanup --prune-stale
 ```
+> **Note:** Running `ingest_awardexplorer` without `--level` defaults to undergraduate awards.
 
 Stop containers:
 ```bash
