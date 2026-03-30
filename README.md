@@ -44,7 +44,7 @@ SpendWise empowers students to discover funding, reduce living costs, and manage
 
 Deployed the version through Digitial Ocean App
 
-http://134.122.6.117:5174/
+https://spendwise.info/
 
 ---
 ## 1. Login / Sign Up
