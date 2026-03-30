@@ -201,26 +201,26 @@ deactivate
 ### 4) Start All Containers
 
 Build and start services:
-
-
-
-Run in background:
-
 ```bash
-docker compose exec backend python manage.py ingest_awardexplorer
+docker compose up --build -d
 ```
 
-Run scholarship explorer migration:
-
+Run migrations:
 ```bash
+docker compose exec backend python manage.py migrate
+```
 
-
+Seed scholarship data:
+```bash
+docker compose exec backend python manage.py ingest_awardexplorer --level undergrad
+docker compose exec backend python manage.py ingest_awardexplorer --level grad
+docker compose exec backend python manage.py scholarships_cleanup --prune-stale
 ```
 
 Stop containers:
-
 ```bash
 docker compose down
+```
 ```
 
 ---
