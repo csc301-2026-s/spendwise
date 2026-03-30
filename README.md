@@ -1,565 +1,212 @@
-
-## UofT SpendWise
-​
-> _Note:_ This document is intended to be relatively short. Be concise and precise. Assume the reader has no prior knowledge of your application and is non-technical. 
-​
-
-## Description about the project
 # SpendWise
 
-SpendWise is a centralized financial support platform built specifically for UofT students. As OSAP grants shrink and student debt rises, students need smarter, proactive tools — not more spreadsheets.
+SpendWise is a centralized financial support platform built for University of Toronto students. As OSAP grants shrink and student debt rises, students need smarter, proactive tools — not more spreadsheets.
+
+> **Developers:** See [HANDOVER.md](./HANDOVER.md) for the full technical reference, including the complete API documentation, deployment guide, CI/CD setup, and maintenance procedures.
+
+---
 
 ## The Problem
-- Reduced non-repayable grants and increased reliance on loans  
-- Fragmented and outdated scholarship information  
-- No centralized system to track OSAP, scholarships, and expenses  
-- Students miss eligible funding and manually manage deadlines  
-- Financial planning is reactive instead of strategic  
 
-## Our Solution
-
-### 📊 Financial Tracking & Planning
-- Central dashboard for tuition, OSAP, scholarships, and expenses  
-- Clear breakdown of loans vs. non-repayable funding  
-- Helps students understand and manage debt early  
-
-### 🎯 Personalized Scholarship Matching
-- Profile-based eligibility matching  
-- Ranked, relevant scholarship results  
-- Clear explanations for matches  
-- Reduces time spent on ineligible applications  
-
-### 💰 Centralized Funding & Cost-Saving Hub
-- Curated, up-to-date scholarship listings  
-- Toronto-specific utilities and cost-saving resources  
-- Verified student discounts and promo codes  
-- One streamlined platform instead of scattered websites  
-
-SpendWise empowers students to discover funding, reduce living costs, and manage their finances with clarity and confidence.
-
-## Instructions
-
-
-## How to Use the Application
-
-Deployed the version through Digitial Ocean App
-
-http://134.122.6.117:5174/
-
----
-## 1. Login / Sign Up
-
-Users can either **log in with existing credentials** or **create a new account**.
-
-### Demo Login Credentials
-
-You may log in using the following credentials:
-
-- **Email:** alihassan.shaikh@mail.utoronto.ca  
-- **Password:** SPENDWISE
-
-<img width="674" height="698" alt="Login Page" src="https://github.com/user-attachments/assets/fc5c7404-976e-43c1-bfad-23fa6ebc26dd" />
-
-### Create a New Account
-
-If you create a new account, you will be asked several questions about your financial situation, such as:
-
-- Current monthly expenses
-- Total income
-- Scholarships or financial aid
-- Other relevant financial information
-
-These responses will be used in **D4** to generate **personalized financial insights and recommendations**.
-
-<img width="1353" height="788" alt="Dashboard Page" src="https://github.com/user-attachments/assets/f8e8f599-7649-42f8-9cc4-c7e74e37aa45" />
-
-### After Login
-
-After successfully logging in, users will be redirected to the **main dashboard** where they can view and manage their financial data.(Screenshot in the second section)
-
-
-
-### Future Improvements
-
-In future versions, we plan to integrate **University of Toronto authentication (UofT SSO)** so students can log in using their university accounts.
+- Reduced non-repayable grants and increased reliance on loans
+- Fragmented and outdated scholarship information
+- No centralized system to track OSAP, scholarships, and expenses
+- Students miss eligible funding and manually manage deadlines
+- Financial planning is reactive instead of strategic
 
 ---
 
-## 2. Dashboard
+## Features
 
-The **Dashboard** is the main landing page after a user logs in.
-
-From here, users can quickly view an overview of their financial activity and key information.
-
-### Features
-
-On the dashboard, users can:
-
-- View an overview of their spending
-- See financial alerts
-- Check upcoming deadlines
-- View a daily financial tip
-
-<img width="743" height="377" alt="Dashboard Overview" src="https://github.com/user-attachments/assets/cdc8a97f-7ee0-4a30-8932-17de3f52ca64" />
+| Feature | Description |
+|---|---|
+| **Dashboard** | Overview of spending, financial alerts, upcoming scholarship deadlines, and daily financial tips |
+| **Scholarship Discovery** | Browse UofT scholarships, filter by campus/faculty/year, and get ranked matches based on your academic profile |
+| **My Scholarships** | Kanban board to track saved scholarships through three stages: Saved/Planned → In Progress → Submitted |
+| **Spending Analysis** | View monthly transactions from your connected bank account, with savings suggestions based on your spending patterns |
+| **Student Codes** | Browse and search verified student discount codes from SPC, UNiDAYS, and Student Beans |
+| **Investment Planning** | Set financial goals, compare portfolio strategies (Conservative/Balanced/Growth/Custom), and get ML-powered recommendations |
+| **Bank Connection** | Connect your bank account via Plaid to automatically sync transactions |
+| **Dark Mode** | Full light/dark theme toggle, persisted between sessions |
 
 ---
 
-## Bank Connection (D3 Feature)
+## Accessing the Application
 
-The **Bank Connection** feature allows users to connect their bank accounts to SpendWise in order to sync and analyze transactions.
+**Live deployment:** http://134.122.6.117:5174/
 
-### Current Implementation
-
-- The **Plaid API** is used to connect bank accounts.
-- The system currently runs in the **Plaid Sandbox environment**, which allows users to connect **dummy bank accounts for testing purposes**.
-- The full connection pipeline has been implemented **end-to-end**.
-- Further testing will be required before moving from **Sandbox → Development environment**.
-
-### Connecting a Bank Account
-
-For a new user, the dashboard will show a **"Connect Bank Account"** option.
-
-When connecting an account:
-
-1. A Plaid connection window will appear.
-2. Users can select a **test bank account**.
-3. A verification code can be entered if prompted.
-4. Users can connect **one bank account at a time**.
-
-<img width="576" height="739" alt="Bank Connection" src="https://github.com/user-attachments/assets/fc0b9cbd-21eb-45d8-92c5-afa4c25bba3d" />
+**Demo login credentials:**
+- Email: `alihassan.shaikh@mail.utoronto.ca`
+- Password: `SPENDWISE`
 
 ---
 
-### Connected Bank Account
+## Quick Start (Local)
 
-Once connected, the bank account will appear on the dashboard.
-
-Currently, users must select **Last Month** because the Plaid sandbox provides transactions for **February 2026**.
-
-<img width="1437" height="796" alt="Connected Bank Account" src="https://github.com/user-attachments/assets/c6573b61-4d2e-44db-b156-ff090fd45765" />
-
----
-
-### Dashboard Summary
-
-The dashboard provides a quick summary of:
-
-- Connected bank accounts
-- Financial status
-- Recent transactions
-- Alerts and insights
-
----
-
-## Future Improvements (D4)
-
-Planned enhancements include:
-
-- Support for **multiple connected bank accounts**
-- Ability to connect **real bank accounts** (outside the sandbox environment)
-- Support for **multiple months of transaction data**
-- Expanded financial insights and analytics
-
-
----
-
-## 3. Scholarship Page
-
-Navigate to the **Scholarship** section from the navigation menu.
-
-On this page you can:
-- Browse scholarships from UofT campuses and colleges
-- Match to my profile to see scholarships ranked by eligibility (edit your profile first for better matches)
-- Filter by campus, year, faculty, discipline, and other criteria
-- Save scholarships with the bookmark icon; they appear in “View saved” and in **Upcoming Deadlines** (Dashboard and this page)
-- View saved to see only your saved scholarships, each with a **status**: Saved / Planned, In Progress, or Submitted (manage status on the My Scholarships page)
-- Use the Upcoming Deadlines panel (fixed on the right) to see saved scholarships ordered by due date
-
-This helps you quickly find and track funding opportunities that match your profile.
-
-<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/c451a2e9-0b54-426d-97de-55587136dc83" />
-
-
----
-
-## 4. Spending Page
-
-Navigate to the **Spending** section to view your monthly financial activity.
-
-Features available on this page:
-
-- **Monthly Transactions**  
-  View all transactions for a selected month (e.g., February 2026). The page summarizes:
-  - Total monthly expenses
-  - Estimated monthly savings opportunities
-
-- **Savings Suggestions**  
-  The system analyzes your spending and identifies potential savings using common **student discounts or promotional offers** (e.g., Uber Eats, DoorDash).  
-  For example, if a user spends more than **5 times or over $300** with a specific service, the backend calculates how much could be saved by applying available discounts.
-
-- **Investment Perspective**  
-  The platform highlights potential savings so users can redirect that money toward **future investments or financial goals**.
-
-- **Transaction Syncing**  
-  Users must click **Sync** to retrieve the latest transaction data from Plaid.
-
-- **Filtering**  
-  Users can filter transactions to analyze spending patterns.
-
-⚠️ **Current Limitation (D4):**  
-Due to Plaid limitations in this stage of development, only **last month's transactions** are currently supported. Future updates will expand this to support **multiple months and more customizable analysis**.
-
----
-
-### Future Improvements
-
-Planned enhancements include:
-- **Smart financial tips** when overspending in certain categories
-- **Improved multi-month transaction analysis**
-
-<img width="1124" height="747" alt="image" src="https://github.com/user-attachments/assets/2c6e3619-b7c4-4a33-9901-7221cc1eb0be" />
-
-
-
----
-
-## 5. Student Codes (Discounts)
-
-The **Student Codes** feature allows users to access verified student discount codes that can help reduce everyday spending.
-
-### Current Implementation
-
-- The **backend functionality** has been fully implemented.
-- The **UI/UX interface** allows users to easily browse and explore available discount codes.
-- Initially, discount codes were added **manually**, but the system now uses a **Python scraper** to automatically collect and populate the database with **SPC and other student discount codes**.
-- Users can **search and filter** available discounts based on membership or category.
-
-<img width="1280" height="1186" alt="Student Codes Page" src="https://github.com/user-attachments/assets/a1e1fff1-6a4e-47e2-b5f1-64626f1b309c" />
-
-### Purpose
-
-This feature helps students quickly find relevant discounts and potentially reduce their spending on services such as food delivery, retail purchases, and subscriptions.
-
----
-
-### Future Improvements (D4)
-
-- **Personalized Discount Recommendations**  
-  Based on a user's spending patterns, the system will recommend relevant student discount codes directly on the **dashboard**.
-
-- **Spending-Based Insights**  
-  The platform will analyze transaction history and suggest **trending or high-value discount codes** that align with the user's spending habits.
-
-- **Dashboard Integration**  
-  Recommended discount codes will appear directly on the **dashboard**, allowing users to quickly discover savings opportunities without needing to manually search for them.
-
-
-
----
-
-## 6. Bank Connection
-
-The bank connection feature allows users to connect their bank accounts to Spendwise.
-
-Currently:
-The plaid API is being used in a sandbox environment to allow users to connect dummy bank accounts. Further testing is required before the 
-sandbox environment will be able to switch to a dev env. This feature has been implemented end to end.
-
-
-
----
-
-## 7. Profile & My Scholarships
-
-**Profile (navbar)**  
-Click your profile icon to open a dropdown with your name, major/year, and links to:
-- Edit Profile — opens the Profile page where you can set faculty, major, year, degree, status, and campus (used for scholarship matching).
-- My Scholarships — opens a Kanban board of your saved scholarships.
-- Log out
-
-**My Scholarships**  
-On the My Scholarships page you can:
-- See saved scholarships in three columns: **Saved / Planned**, **In Progress**, and **Submitted**
-- Drag and drop cards between columns to update their status
-- Each card shows title, amount, deadline, and a color-coded status pill
-
-**Settings (navbar)**  
-Click the settings icon to:
-- Switch theme between light and dark mode (saved for your next visit)
-- Report a bug (opens a form that emails a bug report)
-
-
----
-
-## 8. Investments Feature
-
-**Built interactive 3-step flow turning real savings data into personalized portfolio recommendations.**
-
-Investment Guidance
-Click "Investments" tile to access goal simulator where you:
-
-- Review auto-filled savings baseline from spending analysis
-- Set financial goal (laptop/tuition/travel) with target amount/date/risk level
-- Compare 4 portfolios (Conservative/Balanced/Growth/Custom) vs savings-only
-- See projected value + investing edge ($80/mo advantage example)
-- Save goal + portfolio to track progress across SpendWise
-  *4 options: Conservative, Balanced, Growth, Custom*
-
-<img width="1600" height="1034" alt="image" src="https://github.com/user-attachments/assets/427e7727-3f08-474b-b3ba-df6c0d4426d1" />
-
-#### Future Improvements
-
-- ML-powered custom portfolios analyzing real-time market data (Yahoo Finance/Alpha Vantage)
-- Personalized allocation recommendations based on spending patterns + risk tolerance
-- Auto-rebalancing alerts when portfolio drifts from target allocations
-- Integration with actual brokerage APIs for live tracking
-
-Then you can open htmlcov/index.html to view the coverage report
-
-## 🌙 Accessibility: Dark Mode
-
-To improve accessibility, a **Dark Mode toggle** has been implemented for users who prefer low-light interfaces.
-
-### Features
-- 🌑 Reduces eye strain in low-light environments  
-- 🎯 Easily accessible via the navigation bar  
-- 👤 Located next to the profile button for quick access  
-
-### How to Use
-1. Navigate to the top navigation bar  
-2. Click the **Dark Mode toggle** next to the profile button  
-3. The interface will switch to a dark theme  
-
-### Notes
-- Designed for better usability and accessibility  
-- Enhances user experience during nighttime or prolonged usage  
-
-## Summary
-
-SpendWise centralizes:
-- Financial tracking with a personalized dashboard
-- Scholarship discovery, saving, and status tracking (Saved / In Progress / Submitted)
-- Profile-based matching and upcoming deadlines
-- Spending management and transaction insights
-- Student discounts and codes
-
-All in one platform designed to simplify financial decision-making for UofT students.
-
-Since D2, we have:
-
-- **Plaid integration** — Real-time transaction sync in sandbox mode; connect bank accounts and view transactions.
-- **User profile** — Academic profile (faculty, major, year, etc.) used for scholarship matching; editable from the dedicated Profile page and navbar.
-- **Filtering and insights** — Filter transactions by period, account, category, and date; Saving Tips panel with tailored suggestions.
-- **Scholarships workflow** — Save scholarships, track status (Saved / In Progress / Submitted), Kanban board (My Scholarships), profile-based matching, and Upcoming Deadlines on Dashboard and Scholarships page.
-- **Theme and settings** — Light/dark mode (persisted) and Report a bug from the navbar settings dropdown.
-
- ---
- 
-# Development Environment Setup
-
-This project uses **Docker Compose** to orchestrate the Django (Backend), React (Frontend), and PostgreSQL (Database) services.
-
----
-
-## Prerequisites
-
-Before you begin, ensure you have:
-
-- **Docker Desktop** (Docker Compose V2 (Desktop Version 4.X onwards))
-- **Git**
-- **Python 3.10+** (only if using local virtual environment)
-
----
-
-## Working with the `dev` Branch
-
-After cloning the repository, follow these steps to work on the remote `dev` branch.
-
-### 1) Clone the Repository
+Requirements: [Docker Desktop](https://www.docker.com/products/docker-desktop/) and Git.
 
 ```bash
 git clone https://github.com/csc301-2026-s/spendwise.git
 cd spendwise
-git fetch --all
-git checkout -b dev origin/dev
----
+git checkout dev
 
-### 2)  Create a Local Virtual Environment
-
-> ⚠️ Not required when running everything through Docker.  
-> Useful if you want to run Django commands locally.
-
-Create a virtual environment:
-
-```bash
-python3 -m venv venv
-```
-
-Activate the virtual environment:
-
-```bash
-source venv/bin/activate
-```
-Install the Dependencies
-```bash
-
-python -m pip install -r backend/requirements.txt
-```
-Deactivate when done:
-
-```bash
-deactivate
-```
-
----
-
-### 4) Start All Containers
-
-Build and start services:
-
-
-
-Run in background:
-
-```bash
 docker compose up -d --build
-```
-
-**Database migrations (run after containers are up, and again whenever you pull schema changes):**
-
-```bash
 docker compose exec backend python manage.py migrate
-```
 
-**Optional data sync (fresh DB or when you need catalog content):** not required on every restart if data already exists in the volume.
-
-```bash
-# UofT scholarship listings (undergrad by default; add --level grad for graduate catalog)
+# Optional: seed scholarship and discount code data (recommended on first run)
 docker compose exec backend python manage.py ingest_awardexplorer
 docker compose exec backend python manage.py ingest_awardexplorer --level grad
-
-# Student discount codes (SPC / UNiDAYS / Student Beans) for the Student Codes page
 docker compose exec backend python manage.py sync_student_codes
 ```
 
-Stop containers:
+Open http://localhost:5174 in your browser.
 
-```bash
-docker compose down
+---
+
+## User Guide
+
+### 1. Login / Sign Up
+
+Create a new account or log in with existing credentials. New accounts require email verification with a 6-digit code.
+
+During onboarding, you will be asked for your academic profile (faculty, major, year, campus) and basic financial information. This data is used to provide personalized scholarship matches and financial insights.
+
+![Login Page](https://github.com/user-attachments/assets/fc5c7404-976e-43c1-bfad-23fa6ebc26dd)
+
+---
+
+### 2. Dashboard
+
+The dashboard is your financial home base. It shows:
+- A summary of your connected bank accounts and recent spending
+- Financial alerts (e.g., overspending in a category)
+- Upcoming scholarship deadlines for scholarships you have saved
+- A daily financial tip
+
+![Dashboard Overview](https://github.com/user-attachments/assets/cdc8a97f-7ee0-4a30-8932-17de3f52ca64)
+
+---
+
+### 3. Connecting a Bank Account
+
+SpendWise uses **Plaid** to securely connect your bank account. The current implementation uses Plaid's **sandbox environment** (test accounts only — no real banking credentials are used or stored).
+
+To connect:
+1. Click **Connect Bank Account** on the dashboard.
+2. A Plaid window will appear. Select a test bank.
+3. Use username `user_good` / password `pass_good`.
+4. Once connected, your transactions will appear in the Spending page.
+
+> Note: Plaid sandbox provides transactions for **February 2026**. Select "Last Month" in the Spending page to view them.
+
+---
+
+### 4. Scholarships
+
+Navigate to **Scholarships** from the navigation bar.
+
+- **Browse:** Scroll through all UofT scholarships.
+- **Filter:** Narrow results by campus, year, faculty, discipline, or keyword.
+- **Match to Profile:** Click "Match to my profile" for ranked results based on your academic profile. Update your profile first for best results.
+- **Save:** Click the bookmark icon to save a scholarship. Saved scholarships appear in the **Upcoming Deadlines** panel and on the My Scholarships page.
+
+![Scholarships Page](https://github.com/user-attachments/assets/c451a2e9-0b54-426d-97de-55587136dc83)
+
+---
+
+### 5. My Scholarships (Kanban Board)
+
+Access via the profile dropdown in the navigation bar.
+
+Manage saved scholarships across three stages by dragging and dropping cards:
+- **Saved / Planned** — scholarships you intend to apply for
+- **In Progress** — applications currently underway
+- **Submitted** — applications you have submitted
+
+Each card shows the title, award amount, deadline, and a colour-coded status.
+
+---
+
+### 6. Spending Analysis
+
+Navigate to **Spending** from the navigation bar.
+
+Click **Sync** to fetch the latest transactions from your connected bank account. The page displays:
+- Total monthly expenses
+- Spending breakdown by category
+- **Savings Suggestions:** If you spend heavily with a merchant that offers student discounts, the system calculates how much you could save by applying available codes.
+
+![Spending Page](https://github.com/user-attachments/assets/2c6e3619-b7c4-4a33-9901-7221cc1eb0be)
+
+---
+
+### 7. Student Codes
+
+Navigate to **Student Codes** from the navigation bar.
+
+Browse and search verified discount codes from:
+- **SPC** (Student Price Card)
+- **UNiDAYS**
+- **Student Beans**
+
+Filter by category or search by merchant name. The **Recommended** tab shows codes relevant to your spending patterns.
+
+![Student Codes Page](https://github.com/user-attachments/assets/a1e1fff1-6a4e-47e2-b5f1-64626f1b309c)
+
+---
+
+### 8. Investment Planning
+
+Navigate to **Investments** from the dashboard or navigation bar.
+
+The three-step investment flow:
+1. **Review your savings baseline** — auto-populated from your spending analysis.
+2. **Set a financial goal** — choose a goal (e.g., laptop, tuition, travel), target amount, date, and risk tolerance.
+3. **Compare portfolios** — see projected values for Conservative, Balanced, Growth, and Custom strategies vs. saving alone.
+
+Save your goal and chosen portfolio to track progress across SpendWise.
+
+![Investment Planning](https://github.com/user-attachments/assets/427e7727-3f08-474b-b3ba-df6c0d4426d1)
+
+---
+
+### 9. Profile & Settings
+
+**Profile:** Click your profile icon in the navigation bar → **Edit Profile** to update your faculty, major, year, degree type, campus, and financial details.
+
+**Settings:** Click the settings icon in the navigation bar to:
+- Toggle **Dark Mode** (preference is saved)
+- **Report a Bug** via a form that sends an email report
+
+---
+
+## Architecture Summary
+
+```
+Browser → Nginx → React Frontend (port 5174)
+                → Django REST API (port 8000) → PostgreSQL
+                                              → Plaid API
+                                              → Alpha Vantage API
 ```
 
----
-
-
-## Service Access / Traffic Flow
-
-| Service   | Host URL                  | Docker Alias     | Purpose                    |
-|------------|--------------------------|------------------|----------------------------|
-| Frontend   | http://localhost:5174    | frontend:5174    | React/Vite Dev Server      |
-| Backend    | http://localhost:8000    | backend:8000     | Django REST API            |
-| Database   | localhost:5432           | db:5432          | PostgreSQL Instance        |
+The full technical architecture, API reference, and developer setup are documented in [HANDOVER.md](./HANDOVER.md).
 
 ---
 
-## Dependency Changes
+## Changelog Since D2
 
-If you add or modify dependencies:
-
-- Python → `requirements.txt`
-- Node → `package.json`
-
-Rebuild containers:
-
-```bash
-docker compose up --build
-```
-
----
-
-## 🧪 Running Tests & Coverage
-
-All tests are located in the `tests/` folder inside the backend.
-
-### Steps
-
-```bash
-cd backend
-python manage.py test tests
-coverage run manage.py test tests
-coverage report
-coverage html
-```
-
-
-
-## Notes
-
-- Data is persisted via Docker volumes.
-- The **frontend** container keeps `node_modules` in a Docker volume. After pulling changes that add npm packages, **rebuild or restart the frontend** so it runs `npm install` on start (or run `docker compose exec frontend npm install` once).
-- Avoid running `docker compose down -v` unless you want to wipe the database.
-- If containers fail to start, try:
-
-```bash
-docker compose down
-docker compose up --build
-```
- 
- ## Deployment and GitHub Workflow
-
-### Git/GitHub Workflow
-
-- We follow a **feature-branch workflow** integrated with **Jira**.
-- Every task begins with a Jira ticket. The developer assigns the ticket to themselves and creates a branch using the naming convention:  
-  `feature/<jira-ticket-id>-short-description`
-- Branches are created from `dev` (our main working branch). No one works directly on `dev`.
-- All changes are submitted through **Pull Requests (PRs) into `dev`**.
-- Each PR must be reviewed by **at least two team members**, including:
-  - The **Team Coordinator**
-  - A team member working on the same feature area (e.g., backend/frontend)
-- We use a **PR template** that requires:
-  - Description of changes
-  - Testing details
-  - AI usage disclosure (if applicable)
-- Reviewers are expected to leave meaningful comments before approval.
-- The developer who opens the PR is responsible for addressing feedback.
-- Once approved and merged, the corresponding Jira ticket is marked as complete.
-
-**Why this workflow?**  
-This structure ensures accountability through Jira tracking, improves collaboration through structured reviews, and maintains code quality by preventing direct changes to the main development branch.
+- **Plaid integration** — Real-time transaction sync in sandbox mode
+- **Spending analysis** — Monthly breakdown, recurring merchant detection, savings suggestions
+- **Investment planning** — Goal simulator, portfolio builder, ML-powered recommendations
+- **My Scholarships** — Drag-and-drop Kanban board with status tracking
+- **Student Codes** — Automated scraper for SPC, UNiDAYS, and Student Beans
+- **User profile** — Academic profile used for scholarship matching
+- **Dark mode** — Persisted light/dark theme
+- **CI/CD** — GitHub Actions pipeline with automated tests and deployment to DigitalOcean
+- **SSL/TLS** — HTTPS via Let's Encrypt / Certbot on the production server
 
 ---
 
-### Deployment
-
-- For local deployment, each team member must clone the repository and follow the Development Environment Setup instructions.
-- Ensure all prerequisites are installed (Docker, Git, Python if using a local virtual environment).
-- Create the virtual environment (if needed), configure `.env` files, and run:
-
-  ```bash
-  docker compose up --build
-
-### (D4 improvements)
-- Implemented automated deployment pipelines using GitHub Actions to streamline CI/CD, ensuring faster and more reliable releases.
-- Configured NGINX to serve the React frontend.
-- Configured workflows to build, test, and deploy applications automatically upon code changes, reducing manual intervention and minimizing deployment errors.
----
-
-### Security (D4)
-- Implemented SSL/TLS encryption using trusted certificates to secure data in transit and protect user communications.
-- Enforced secure HTTPS connections to enhance overall system security and compliance.
----
-
-## Coding Standards and Guidelines
-
-
-All folders and file names must use lowercase and follow Django’s default project structure. We maintain consistent code organization by structuring backend files according to features and will document our workflow to ensure clarity, scalability, and team alignment.
-
----
-  
 ## License
 
-- The repository will remain **private** during development.
-- Upon public release, the project will be licensed under the **MIT License (MIT)**.
-- The MIT License allows others to use, modify, and distribute the software with proper attribution while limiting liability.
-- Keeping the repository private during development protects unfinished work and prevents premature external use.
-
+The repository is private during development. Upon public release, the project will be licensed under the **MIT License**.
