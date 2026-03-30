@@ -46,34 +46,13 @@ const ASSET_META = {
 };
 
 const PORTFOLIO_BUILDER_STEPS = [
-  {
-    title: "Understand your goal context",
-    description: "The top card shows your goal name, risk preference, target amount and date — pulled automatically from the Goal Planner. This guides which assets are right for you.",
-  },
-  {
-    title: "Browse recommendations",
-    description: "Scroll to Recommendations — these are real ETFs ranked by a risk-adjusted performance score (0–100) tailored to your risk level. Higher score = better fit for your profile.",
-  },
-  {
-    title: "Search for specific assets",
-    description: "Type an exact ticker symbol (e.g. AAPL, VTI, QQQ) and click Search. You can search for any US-listed stock or ETF.",
-  },
-  {
-    title: "View asset details & chart",
-    description: "Click 'View' on any search result to see its current price, expected annual return, volatility, and a price chart. Use the 1D–5Y buttons to explore different time periods.",
-  },
-  {
-    title: "Add assets to your portfolio",
-    description: "Click 'Add to Portfolio' on any asset or recommendation. A diversified portfolio typically holds 3–8 assets across different sectors.",
-  },
-  {
-    title: "Set allocations",
-    description: "Enter a % for each asset — how much of your portfolio goes into each one. All allocations must add up to exactly 100%. Click 'Auto Balance' to split evenly.",
-  },
-  {
-    title: "Use This Portfolio",
-    description: "Once allocations total 100%, click 'Use This Portfolio' to save it and return to the Goal Planner where you'll see your projected growth chart.",
-  },
+  { title: "Understand your goal context", description: "The top card shows your goal name, risk preference, target amount and date — pulled automatically from the Goal Planner." },
+  { title: "Browse recommendations", description: "Click 'Generate Recommendations' to fetch real ETFs ranked by a risk-adjusted performance score (0–100) tailored to your risk level." },
+  { title: "Search for specific assets", description: "Type an exact ticker symbol (e.g. AAPL, VTI, QQQ) and click Search." },
+  { title: "View asset details & chart", description: "Click 'View' on any search result to see its current price, expected annual return, volatility, and a price chart." },
+  { title: "Add assets to your portfolio", description: "Click 'Add to Portfolio' on any asset or recommendation. A diversified portfolio typically holds 3–8 assets." },
+  { title: "Set allocations", description: "Enter a % for each asset. All allocations must add up to exactly 100%. Click 'Auto Balance' to split evenly." },
+  { title: "Use This Portfolio", description: "Once allocations total 100%, click 'Use This Portfolio' to save and return to the Goal Planner." },
 ];
 
 function getAssetEmoji(symbol) {
@@ -87,9 +66,7 @@ function getAssetColor(symbol) {
 }
 
 function getAuthHeaders() {
-  const token =
-    sessionStorage.getItem("userAccessToken") ||
-    sessionStorage.getItem("userToken");
+  const token = sessionStorage.getItem("userAccessToken") || sessionStorage.getItem("userToken");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -97,9 +74,7 @@ function getAuthHeaders() {
 }
 
 function money(value) {
-  return Number(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
+  return Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function capitalize(str) {
@@ -108,10 +83,8 @@ function capitalize(str) {
 }
 
 function readGoalDraft() {
-  try {
-    const raw = sessionStorage.getItem("goalDraft");
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  try { const raw = sessionStorage.getItem("goalDraft"); return raw ? JSON.parse(raw) : null; }
+  catch { return null; }
 }
 
 function readPortfolioDraft() {
@@ -137,15 +110,8 @@ function buildPortfolioObject(holdings, riskLevel = "Custom", name = "My Portfol
     allocation: Number(h.allocation || 0),
     expectedReturn: Number(h.expectedReturn || 0),
   }));
-  const expectedReturn = cleanHoldings.reduce(
-    (sum, h) => sum + (h.allocation / 100) * h.expectedReturn, 0
-  );
-  return {
-    id: "custom_draft", name, type: "custom",
-    risk: riskLevel || "Custom",
-    expectedReturn: Number(expectedReturn.toFixed(2)),
-    holdings: cleanHoldings,
-  };
+  const expectedReturn = cleanHoldings.reduce((sum, h) => sum + (h.allocation / 100) * h.expectedReturn, 0);
+  return { id: "custom_draft", name, type: "custom", risk: riskLevel || "Custom", expectedReturn: Number(expectedReturn.toFixed(2)), holdings: cleanHoldings };
 }
 
 function normalizeScores(recs) {
@@ -154,10 +120,7 @@ function normalizeScores(recs) {
   const min = Math.min(...scores);
   const max = Math.max(...scores);
   const range = max - min || 1;
-  return recs.map((r) => ({
-    ...r,
-    display_score: Math.round(((Number(r.recommendation_score) - min) / range) * 100),
-  }));
+  return recs.map((r) => ({ ...r, display_score: Math.round(((Number(r.recommendation_score) - min) / range) * 100) }));
 }
 
 export default function PortfolioBuilder() {
@@ -179,8 +142,11 @@ export default function PortfolioBuilder() {
   const [chartPeriod, setChartPeriod] = useState("1y");
   const [chartLoading, setChartLoading] = useState(false);
 
+  // ✅ On-demand only — no auto-fetch on mount
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [recsGenerated, setRecsGenerated] = useState(false);
+  const [recsError, setRecsError] = useState("");
 
   const [holdings, setHoldings] = useState([]);
 
@@ -197,8 +163,8 @@ export default function PortfolioBuilder() {
     }
   }, []);
 
-  const portfolioDraft = useMemo(() =>
-    buildPortfolioObject(holdings, goalDraft?.riskLevel || "Custom", portfolioName.trim() || "My Portfolio"),
+  const portfolioDraft = useMemo(
+    () => buildPortfolioObject(holdings, goalDraft?.riskLevel || "Custom", portfolioName.trim() || "My Portfolio"),
     [holdings, goalDraft, portfolioName]
   );
 
@@ -206,34 +172,34 @@ export default function PortfolioBuilder() {
     if (holdings.length) sessionStorage.setItem("portfolioDraft", JSON.stringify(portfolioDraft));
   }, [holdings, portfolioDraft]);
 
-  useEffect(() => {
-    async function loadRecommendations() {
-      try {
-        setLoadingRecommendations(true);
-        const riskLevel = goalDraft?.riskLevel || "balanced";
-        const res = await fetch(
-          `${API_BASE}/investments/recommendations/?risk_level=${encodeURIComponent(riskLevel)}`,
-          { headers: getAuthHeaders() }
-        );
-        if (!res.ok) { setRecommendations([]); return; }
-        const data = await res.json();
-        const raw = Array.isArray(data) ? data : data.results || [];
-        setRecommendations(normalizeScores(raw));
-      } catch {
-        setRecommendations([]);
-      } finally {
-        setLoadingRecommendations(false);
-      }
+  // ✅ Called only when user clicks the button
+  async function handleGenerateRecommendations() {
+    try {
+      setLoadingRecommendations(true);
+      setRecsError("");
+      const riskLevel = goalDraft?.riskLevel || "balanced";
+      const res = await fetch(
+        `${API_BASE}/investments/recommendations/?risk_level=${encodeURIComponent(riskLevel)}`,
+        { headers: getAuthHeaders() }
+      );
+      if (!res.ok) { setRecsError("Could not load recommendations. Try again."); return; }
+      const data = await res.json();
+      const raw = Array.isArray(data) ? data : data.results || [];
+      if (!raw.length) { setRecsError("No recommendations available right now. Live market data may be unavailable."); return; }
+      setRecommendations(normalizeScores(raw));
+      setRecsGenerated(true);
+    } catch {
+      setRecsError("Failed to fetch recommendations. Check your connection.");
+    } finally {
+      setLoadingRecommendations(false);
     }
-    loadRecommendations();
-  }, [goalDraft]);
+  }
 
   async function handleSearch(e) {
     e?.preventDefault?.();
     if (!searchQuery.trim()) { setSearchResults([]); setSearchError(""); return; }
     try {
-      setSearching(true);
-      setSearchError("");
+      setSearching(true); setSearchError("");
       const res = await fetch(
         `${API_BASE}/investments/assets/search/?q=${encodeURIComponent(searchQuery.trim())}`,
         { headers: getAuthHeaders() }
@@ -244,20 +210,14 @@ export default function PortfolioBuilder() {
       if (!results.length) setSearchError(`No results for "${searchQuery}". Try an exact ticker: AAPL, VTI, QQQ, BND.`);
       setSearchResults(results);
     } catch (err) {
-      setSearchError(err.message || "Failed to search.");
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
+      setSearchError(err.message || "Failed to search."); setSearchResults([]);
+    } finally { setSearching(false); }
   }
 
   async function loadChart(symbol, period) {
     try {
       setChartLoading(true);
-      const res = await fetch(
-        `${API_BASE}/investments/assets/chart/?symbol=${encodeURIComponent(symbol)}&period=${period}`,
-        { headers: getAuthHeaders() }
-      );
+      const res = await fetch(`${API_BASE}/investments/assets/chart/?symbol=${encodeURIComponent(symbol)}&period=${period}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setAssetChart(Array.isArray(data.chart) ? data.chart : []);
@@ -273,9 +233,7 @@ export default function PortfolioBuilder() {
   async function loadAsset(symbol) {
     if (!symbol) return;
     try {
-      setAssetLoading(true);
-      setAssetError("");
-      setChartPeriod("1y");
+      setAssetLoading(true); setAssetError(""); setChartPeriod("1y");
       const [detailRes, chartRes] = await Promise.all([
         fetch(`${API_BASE}/investments/assets/detail/?symbol=${encodeURIComponent(symbol)}`, { headers: getAuthHeaders() }),
         fetch(`${API_BASE}/investments/assets/chart/?symbol=${encodeURIComponent(symbol)}&period=1y`, { headers: getAuthHeaders() }),
@@ -295,9 +253,7 @@ export default function PortfolioBuilder() {
       });
       setAssetChart(Array.isArray(chartData.chart) ? chartData.chart : []);
     } catch (err) {
-      setAssetError(err.message || "Failed to load asset.");
-      setSelectedAsset(null);
-      setAssetChart([]);
+      setAssetError(err.message || "Failed to load asset."); setSelectedAsset(null); setAssetChart([]);
     } finally { setAssetLoading(false); }
   }
 
@@ -305,10 +261,8 @@ export default function PortfolioBuilder() {
     const symbol = assetLike.symbol;
     if (!symbol || holdings.some((h) => h.symbol.toUpperCase() === symbol.toUpperCase())) return;
     setHoldings((prev) => [...prev, {
-      symbol,
-      name: assetLike.name || assetLike.asset_name || symbol,
-      type: getAssetType(assetLike),
-      allocation: 0,
+      symbol, name: assetLike.name || assetLike.asset_name || symbol,
+      type: getAssetType(assetLike), allocation: 0,
       expectedReturn: Number(assetLike.expectedReturn ?? assetLike.expected_return ?? assetLike.return1Y ?? 0),
     }]);
   }
@@ -316,15 +270,12 @@ export default function PortfolioBuilder() {
   function updateHolding(index, field, value) {
     setHoldings((prev) => prev.map((h, i) => i !== index ? h : {
       ...h,
-      [field]: field === "allocation"
-        ? Math.max(0, Math.min(100, Number(value) || 0))
-        : field === "expectedReturn" ? Number(value) || 0 : value,
+      [field]: field === "allocation" ? Math.max(0, Math.min(100, Number(value) || 0))
+             : field === "expectedReturn" ? Number(value) || 0 : value,
     }));
   }
 
-  function removeHolding(index) {
-    setHoldings((prev) => prev.filter((_, i) => i !== index));
-  }
+  function removeHolding(index) { setHoldings((prev) => prev.filter((_, i) => i !== index)); }
 
   function normalizeAllocations() {
     if (!holdings.length) return;
@@ -333,9 +284,7 @@ export default function PortfolioBuilder() {
     setHoldings((prev) => prev.map((h, i) => ({ ...h, allocation: base + (i === 0 ? remainder : 0) })));
   }
 
-  const allocationTotal = useMemo(() =>
-    holdings.reduce((sum, h) => sum + Number(h.allocation || 0), 0), [holdings]
-  );
+  const allocationTotal = useMemo(() => holdings.reduce((sum, h) => sum + Number(h.allocation || 0), 0), [holdings]);
   const allocationValid = allocationTotal === 100;
 
   function saveDraftAndReturn() {
@@ -349,15 +298,9 @@ export default function PortfolioBuilder() {
   return (
     <div className="inv-page">
       <Navbar />
-
       {showInstructions && (
-        <InstructionsModal
-          title="How to Use the Portfolio Builder"
-          steps={PORTFOLIO_BUILDER_STEPS}
-          onClose={() => setShowInstructions(false)}
-        />
+        <InstructionsModal title="How to Use the Portfolio Builder" steps={PORTFOLIO_BUILDER_STEPS} onClose={() => setShowInstructions(false)} />
       )}
-
       <div className="inv-body">
         <div className="inv-header">
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
@@ -365,12 +308,7 @@ export default function PortfolioBuilder() {
               <h1>Portfolio Builder</h1>
               <p>Search real assets, view charts, explore recommendations, and build a portfolio for your goal.</p>
             </div>
-            <button
-              className="inv-button"
-              type="button"
-              onClick={() => setShowInstructions(true)}
-              style={{ display: "flex", alignItems: "center", gap: "0.4rem", whiteSpace: "nowrap" }}
-            >
+            <button className="inv-button" type="button" onClick={() => setShowInstructions(true)} style={{ display: "flex", alignItems: "center", gap: "0.4rem", whiteSpace: "nowrap" }}>
               📘 How to use this
             </button>
           </div>
@@ -383,22 +321,10 @@ export default function PortfolioBuilder() {
               <h2 className="inv-sectionTitle">Goal Context</h2>
               {goalDraft ? (
                 <div className="inv-formGrid">
-                  <div className="inv-field">
-                    <label className="inv-label">Goal</label>
-                    <div className="inv-hint">{goalDraft.goalName || "Untitled Goal"}</div>
-                  </div>
-                  <div className="inv-field">
-                    <label className="inv-label">Risk Preference</label>
-                    <div className="inv-hint">{capitalize(goalDraft.riskLevel || "balanced")}</div>
-                  </div>
-                  <div className="inv-field">
-                    <label className="inv-label">Target Amount</label>
-                    <div className="inv-hint">${money(goalDraft.targetAmount)}</div>
-                  </div>
-                  <div className="inv-field">
-                    <label className="inv-label">Target Date</label>
-                    <div className="inv-hint">{goalDraft.targetDate}</div>
-                  </div>
+                  <div className="inv-field"><label className="inv-label">Goal</label><div className="inv-hint">{goalDraft.goalName || "Untitled Goal"}</div></div>
+                  <div className="inv-field"><label className="inv-label">Risk Preference</label><div className="inv-hint">{capitalize(goalDraft.riskLevel || "balanced")}</div></div>
+                  <div className="inv-field"><label className="inv-label">Target Amount</label><div className="inv-hint">${money(goalDraft.targetAmount)}</div></div>
+                  <div className="inv-field"><label className="inv-label">Target Date</label><div className="inv-hint">{goalDraft.targetDate}</div></div>
                 </div>
               ) : (
                 <div className="inv-hint error">No goal draft found. Go back to the Goal Planner first.</div>
@@ -412,33 +338,19 @@ export default function PortfolioBuilder() {
               <form onSubmit={handleSearch} className="inv-formGrid">
                 <div className="inv-field" style={{ gridColumn: "1 / span 2" }}>
                   <label className="inv-label">Ticker Symbol</label>
-                  <input
-                    className="inv-input"
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="e.g. AAPL, VTI, QQQ, BND..."
-                  />
+                  <input className="inv-input" type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="e.g. AAPL, VTI, QQQ, BND..." />
                 </div>
                 <div className="inv-field" style={{ display: "flex", alignItems: "end" }}>
-                  <button className="inv-button" type="submit" disabled={searching}>
-                    {searching ? "Searching..." : "Search"}
-                  </button>
+                  <button className="inv-button" type="submit" disabled={searching}>{searching ? "Searching..." : "Search"}</button>
                 </div>
               </form>
-
               {searchError && <div className="inv-hint error" style={{ marginTop: "0.5rem" }}>{searchError}</div>}
-
               {!!searchResults.length && (
                 <div className="inv-list" style={{ marginTop: "1rem" }}>
                   {searchResults.map((result, i) => (
                     <div className="inv-row" key={`${result.symbol}-${i}`}>
                       <div className="inv-rowLeft">
-                        <div style={{
-                          width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0,
-                          background: getAssetColor(result.symbol) + "22",
-                          display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem",
-                        }}>
+                        <div style={{ width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0, background: getAssetColor(result.symbol) + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>
                           {getAssetEmoji(result.symbol)}
                         </div>
                         <div>
@@ -447,9 +359,7 @@ export default function PortfolioBuilder() {
                           {result.current_price && <div className="inv-rowSub">${money(result.current_price)}</div>}
                         </div>
                       </div>
-                      <button className="inv-button" type="button" onClick={() => loadAsset(result.symbol)}>
-                        View
-                      </button>
+                      <button className="inv-button" type="button" onClick={() => loadAsset(result.symbol)}>View</button>
                     </div>
                   ))}
                 </div>
@@ -466,36 +376,23 @@ export default function PortfolioBuilder() {
               ) : selectedAsset ? (
                 <>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                    <div style={{
-                      width: "52px", height: "52px", borderRadius: "14px", flexShrink: 0,
-                      background: assetColor + "22",
-                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem",
-                    }}>
+                    <div style={{ width: "52px", height: "52px", borderRadius: "14px", flexShrink: 0, background: assetColor + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem" }}>
                       {getAssetEmoji(selectedAsset.symbol)}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: "1.1rem", color: "#1a1a2e" }}>
-                        {selectedAsset.symbol}
-                      </div>
+                      <div style={{ fontWeight: 700, fontSize: "1.1rem", color: "#1a1a2e" }}>{selectedAsset.symbol}</div>
                       <div style={{ color: "#555", fontSize: "0.88rem" }}>{selectedAsset.name}</div>
                     </div>
                   </div>
-
                   <div className="inv-compareGrid">
                     <div className="inv-compareBox">
                       <div className="inv-compareLabel">Current Price</div>
-                      <div className="inv-compareValue">
-                        {selectedAsset.currentPrice != null
-                          ? `${selectedAsset.currency} ${money(selectedAsset.currentPrice)}`
-                          : "—"}
-                      </div>
+                      <div className="inv-compareValue">{selectedAsset.currentPrice != null ? `${selectedAsset.currency} ${money(selectedAsset.currentPrice)}` : "—"}</div>
                     </div>
                     <div className="inv-compareBox">
                       <div className="inv-compareLabel">Exp. Annual Return</div>
                       <div className="inv-compareValue" style={{ color: selectedAsset.expectedReturn >= 0 ? "#00b894" : "#d63031" }}>
-                        {selectedAsset.expectedReturn
-                          ? `${selectedAsset.expectedReturn > 0 ? "+" : ""}${selectedAsset.expectedReturn}%`
-                          : "—"}
+                        {selectedAsset.expectedReturn ? `${selectedAsset.expectedReturn > 0 ? "+" : ""}${selectedAsset.expectedReturn}%` : "—"}
                       </div>
                     </div>
                     <div className="inv-compareBox">
@@ -505,77 +402,38 @@ export default function PortfolioBuilder() {
                     <div className="inv-compareBox">
                       <div className="inv-compareLabel">1Y Return</div>
                       <div className="inv-compareValue" style={{ color: selectedAsset.return1Y >= 0 ? "#00b894" : "#d63031" }}>
-                        {selectedAsset.return1Y
-                          ? `${selectedAsset.return1Y > 0 ? "+" : ""}${selectedAsset.return1Y}%`
-                          : "—"}
+                        {selectedAsset.return1Y ? `${selectedAsset.return1Y > 0 ? "+" : ""}${selectedAsset.return1Y}%` : "—"}
                       </div>
                     </div>
                   </div>
-
                   {assetChart.length > 0 && (
                     <>
                       <div style={{ display: "flex", gap: "0.4rem", marginTop: "1rem", flexWrap: "wrap" }}>
                         {PERIOD_OPTIONS.map(({ label, value }) => (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => handlePeriodChange(value)}
-                            disabled={chartLoading}
-                            style={{
-                              padding: "0.25rem 0.65rem", borderRadius: "6px",
-                              border: `1px solid ${assetColor}`,
-                              background: chartPeriod === value ? assetColor : "transparent",
-                              color: chartPeriod === value ? "#fff" : assetColor,
-                              cursor: chartLoading ? "not-allowed" : "pointer",
-                              fontSize: "0.78rem", fontWeight: 600,
-                              opacity: chartLoading ? 0.6 : 1,
-                              transition: "all 0.15s ease",
-                            }}
-                          >
+                          <button key={value} type="button" onClick={() => handlePeriodChange(value)} disabled={chartLoading} style={{ padding: "0.25rem 0.65rem", borderRadius: "6px", border: `1px solid ${assetColor}`, background: chartPeriod === value ? assetColor : "transparent", color: chartPeriod === value ? "#fff" : assetColor, cursor: chartLoading ? "not-allowed" : "pointer", fontSize: "0.78rem", fontWeight: 600, opacity: chartLoading ? 0.6 : 1, transition: "all 0.15s ease" }}>
                             {label}
                           </button>
                         ))}
                       </div>
-
                       <div style={{ width: "100%", height: 300, marginTop: "0.75rem" }}>
-                        {chartLoading ? (
-                          <div className="inv-hint">Loading chart...</div>
-                        ) : (
+                        {chartLoading ? <div className="inv-hint">Loading chart...</div> : (
                           <ResponsiveContainer>
                             <LineChart data={assetChart}>
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="date" minTickGap={40} />
-                              <YAxis
-                                domain={([dataMin, dataMax]) => {
-                                  const padding = (dataMax - dataMin) * 0.05 || 1;
-                                  return [
-                                    parseFloat((dataMin - padding).toFixed(2)),
-                                    parseFloat((dataMax + padding).toFixed(2)),
-                                  ];
-                                }}
-                                tickFormatter={(v) => `$${money(v)}`}
-                                width={80}
-                              />
+                              <YAxis domain={([dataMin, dataMax]) => { const p = (dataMax - dataMin) * 0.05 || 1; return [parseFloat((dataMin - p).toFixed(2)), parseFloat((dataMax + p).toFixed(2))]; }} tickFormatter={(v) => `$${money(v)}`} width={80} />
                               <Tooltip formatter={(v) => `$${money(v)}`} />
                               <Legend />
-                              <Line type="monotone" dataKey="price" name={selectedAsset.symbol}
-                                stroke={assetColor} strokeWidth={2} dot={false} />
+                              <Line type="monotone" dataKey="price" name={selectedAsset.symbol} stroke={assetColor} strokeWidth={2} dot={false} />
                             </LineChart>
                           </ResponsiveContainer>
                         )}
                       </div>
                     </>
                   )}
-
                   <div style={{ marginTop: "1rem" }}>
-                    <button
-                      className="inv-button"
-                      type="button"
-                      onClick={() => addAssetToPortfolio(selectedAsset)}
-                      disabled={holdings.some((h) => h.symbol.toUpperCase() === selectedAsset.symbol.toUpperCase())}
-                    >
-                      {holdings.some((h) => h.symbol.toUpperCase() === selectedAsset.symbol.toUpperCase())
-                        ? "✓ Already Added" : "+ Add to Portfolio"}
+                    <button className="inv-button" type="button" onClick={() => addAssetToPortfolio(selectedAsset)} disabled={holdings.some((h) => h.symbol.toUpperCase() === selectedAsset.symbol.toUpperCase())}>
+                      {holdings.some((h) => h.symbol.toUpperCase() === selectedAsset.symbol.toUpperCase()) ? "✓ Already Added" : "+ Add to Portfolio"}
                     </button>
                   </div>
                 </>
@@ -584,62 +442,61 @@ export default function PortfolioBuilder() {
               )}
             </div>
 
-            {/* Recommendations */}
+            {/* ✅ Recommendations — on-demand only */}
             <div className="inv-card">
               <h2 className="inv-sectionTitle">Recommendations</h2>
               <p className="inv-sectionSub">
-                Ranked by risk-adjusted score (0–100) for your{" "}
-                <strong>{capitalize(goalDraft?.riskLevel || "balanced")}</strong> risk profile.
-                Higher score = better fit.
+                Ranked by risk-adjusted score (0–100) for your <strong>{capitalize(goalDraft?.riskLevel || "balanced")}</strong> risk profile.
               </p>
-              {loadingRecommendations ? (
-                <div className="inv-hint">Loading recommendations...</div>
-              ) : recommendations.length ? (
-                <div className="inv-list">
-                  {recommendations.map((rec, i) => (
-                    <div className="inv-row" key={`${rec.symbol}-${i}`}>
-                      <div className="inv-rowLeft" style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{
-                          width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0,
-                          background: getAssetColor(rec.symbol) + "22",
-                          display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem",
-                        }}>
-                          {getAssetEmoji(rec.symbol)}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div className="inv-rowTitle">{rec.symbol}</div>
-                          <div className="inv-rowSub">{rec.asset_name || rec.name || "Recommended asset"}</div>
-                          <div className="inv-rowSub">{rec.reason}</div>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
-                        <div style={{
-                          padding: "0.2rem 0.55rem", borderRadius: "20px",
-                          background: getAssetColor(rec.symbol) + "22",
-                          color: getAssetColor(rec.symbol),
-                          fontWeight: 700, fontSize: "0.78rem", whiteSpace: "nowrap",
-                        }}>
-                          {rec.display_score ?? "—"}/100
-                        </div>
-                        <button
-                          className="inv-button"
-                          type="button"
-                          onClick={() => addAssetToPortfolio({
-                            symbol: rec.symbol,
-                            name: rec.asset_name || rec.name || rec.symbol,
-                            type: rec.asset_type || rec.type,
-                            expectedReturn: Number(rec.expected_return || 0),
-                          })}
-                          disabled={holdings.some((h) => h.symbol === rec.symbol)}
-                        >
-                          {holdings.some((h) => h.symbol === rec.symbol) ? "✓ Added" : "Add"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+              {!recsGenerated ? (
+                <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
+                  <p className="inv-hint" style={{ marginBottom: "1rem" }}>
+                    Click below to fetch live ETF recommendations based on your risk profile. This uses live market data and may take a few seconds.
+                  </p>
+                  <button className="inv-button" type="button" onClick={handleGenerateRecommendations} disabled={loadingRecommendations} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                    {loadingRecommendations ? <>⏳ Fetching recommendations...</> : <>✨ Generate Recommendations</>}
+                  </button>
+                  {recsError && <div className="inv-hint error" style={{ marginTop: "0.75rem" }}>{recsError}</div>}
                 </div>
               ) : (
-                <div className="inv-hint">No recommendations available yet.</div>
+                <>
+                  {recommendations.length ? (
+                    <div className="inv-list">
+                      {recommendations.map((rec, i) => (
+                        <div className="inv-row" key={`${rec.symbol}-${i}`}>
+                          <div className="inv-rowLeft" style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0, background: getAssetColor(rec.symbol) + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>
+                              {getAssetEmoji(rec.symbol)}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="inv-rowTitle">{rec.symbol}</div>
+                              <div className="inv-rowSub">{rec.asset_name || rec.name || "Recommended asset"}</div>
+                              <div className="inv-rowSub">{rec.reason}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
+                            <div style={{ padding: "0.2rem 0.55rem", borderRadius: "20px", background: getAssetColor(rec.symbol) + "22", color: getAssetColor(rec.symbol), fontWeight: 700, fontSize: "0.78rem", whiteSpace: "nowrap" }}>
+                              {rec.display_score ?? "—"}/100
+                            </div>
+                            <button className="inv-button" type="button" onClick={() => addAssetToPortfolio({ symbol: rec.symbol, name: rec.asset_name || rec.name || rec.symbol, type: rec.asset_type || rec.type, expectedReturn: Number(rec.expected_return || 0) })} disabled={holdings.some((h) => h.symbol === rec.symbol)}>
+                              {holdings.some((h) => h.symbol === rec.symbol) ? "✓ Added" : "Add"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="inv-hint">No recommendations available right now.</div>
+                  )}
+                  <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+                    <button className="inv-button" type="button" onClick={handleGenerateRecommendations} disabled={loadingRecommendations} style={{ opacity: 0.8 }}>
+                      {loadingRecommendations ? "Refreshing..." : "🔄 Refresh"}
+                    </button>
+                    <button className="inv-button" type="button" onClick={() => { setRecsGenerated(false); setRecommendations([]); setRecsError(""); }} style={{ opacity: 0.6 }}>
+                      Reset
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -650,72 +507,37 @@ export default function PortfolioBuilder() {
               <h2 className="inv-sectionTitle">Your Portfolio</h2>
               <div className="inv-field" style={{ marginBottom: "1rem" }}>
                 <label className="inv-label">Portfolio Name</label>
-                <input
-                  className="inv-input"
-                  type="text"
-                  value={portfolioName}
-                  onChange={(e) => setPortfolioName(e.target.value)}
-                />
+                <input className="inv-input" type="text" value={portfolioName} onChange={(e) => setPortfolioName(e.target.value)} />
               </div>
-
               {!holdings.length ? (
                 <div className="inv-hint">No assets added yet. Search for an asset or add a recommendation.</div>
               ) : (
                 <>
                   <div className="inv-list">
                     {holdings.map((holding, index) => (
-                      <div className="inv-row" key={`${holding.symbol}-${index}`}
-                        style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+                      <div className="inv-row" key={`${holding.symbol}-${index}`} style={{ flexWrap: "wrap", gap: "0.5rem" }}>
                         <div className="inv-rowLeft" style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{
-                            width: "36px", height: "36px", borderRadius: "9px", flexShrink: 0,
-                            background: getAssetColor(holding.symbol) + "22",
-                            display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem",
-                          }}>
+                          <div style={{ width: "36px", height: "36px", borderRadius: "9px", flexShrink: 0, background: getAssetColor(holding.symbol) + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
                             {getAssetEmoji(holding.symbol)}
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <div className="inv-rowTitle">{holding.symbol}</div>
-                            <div className="inv-rowSub" style={{
-                              overflow: "hidden", textOverflow: "ellipsis",
-                              whiteSpace: "nowrap", maxWidth: "150px",
-                            }}>
-                              {holding.name}
-                            </div>
+                            <div className="inv-rowSub" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "150px" }}>{holding.name}</div>
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexShrink: 0 }}>
-                          <input
-                            className="inv-input"
-                            type="number"
-                            min="0" max="100" step="1"
-                            style={{ width: "58px", textAlign: "center", padding: "0.3rem" }}
-                            value={holding.allocation === 0 ? "" : holding.allocation}
-                            onChange={(e) => updateHolding(index, "allocation", e.target.value === "" ? 0 : e.target.value)}
-                            onBlur={(e) => { if (!e.target.value) updateHolding(index, "allocation", 0); }}
-                          />
+                          <input className="inv-input" type="number" min="0" max="100" step="1" style={{ width: "58px", textAlign: "center", padding: "0.3rem" }} value={holding.allocation === 0 ? "" : holding.allocation} onChange={(e) => updateHolding(index, "allocation", e.target.value === "" ? 0 : e.target.value)} onBlur={(e) => { if (!e.target.value) updateHolding(index, "allocation", 0); }} />
                           <span style={{ fontSize: "0.85rem" }}>%</span>
-                          <button
-                            className="inv-button" type="button"
-                            onClick={() => removeHolding(index)}
-                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }}
-                          >
-                            Remove
-                          </button>
+                          <button className="inv-button" type="button" onClick={() => removeHolding(index)} style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }}>Remove</button>
                         </div>
                       </div>
                     ))}
                   </div>
-
                   <div style={{ marginTop: "1rem" }}>
-                    <button className="inv-button" type="button" onClick={normalizeAllocations}>
-                      Auto Balance
-                    </button>
+                    <button className="inv-button" type="button" onClick={normalizeAllocations}>Auto Balance</button>
                   </div>
-
                   <div className={`inv-hint ${allocationValid ? "success" : "error"}`} style={{ marginTop: "1rem" }}>
-                    Allocation total: {allocationTotal}%{" "}
-                    {allocationValid ? "— looks good ✓" : "— must equal 100%"}
+                    Allocation total: {allocationTotal}% {allocationValid ? "— looks good ✓" : "— must equal 100%"}
                   </div>
                 </>
               )}
@@ -730,17 +552,12 @@ export default function PortfolioBuilder() {
               </div>
               <div className="inv-compareBox" style={{ marginBottom: "0.85rem" }}>
                 <div className="inv-compareLabel">Expected Return</div>
-                <div className="inv-compareValue" style={{ color: "#00b894" }}>
-                  +{portfolioDraft.expectedReturn}%
-                </div>
+                <div className="inv-compareValue" style={{ color: "#00b894" }}>+{portfolioDraft.expectedReturn}%</div>
               </div>
               <div className="inv-compareBox">
                 <div className="inv-compareLabel">Allocation Total</div>
-                <div className="inv-compareValue" style={{ color: allocationValid ? "#00b894" : "#d63031" }}>
-                  {allocationTotal}%
-                </div>
+                <div className="inv-compareValue" style={{ color: allocationValid ? "#00b894" : "#d63031" }}>{allocationTotal}%</div>
               </div>
-
               {!!holdings.length && (
                 <div style={{ width: "100%", height: 300, marginTop: "1rem" }}>
                   <ResponsiveContainer>
@@ -763,19 +580,10 @@ export default function PortfolioBuilder() {
               <div className="inv-hint" style={{ marginBottom: "1rem" }}>
                 Save this draft and return to the Goal Planner to view projections and save the full plan.
               </div>
-              <button
-                className="inv-button" type="button"
-                onClick={saveDraftAndReturn}
-                disabled={!holdings.length || !allocationValid}
-                style={{ width: "100%", marginBottom: "0.75rem" }}
-              >
+              <button className="inv-button" type="button" onClick={saveDraftAndReturn} disabled={!holdings.length || !allocationValid} style={{ width: "100%", marginBottom: "0.75rem" }}>
                 Use This Portfolio
               </button>
-              <button
-                className="inv-button" type="button"
-                onClick={() => navigate("/investing")}
-                style={{ width: "100%", opacity: 0.85 }}
-              >
+              <button className="inv-button" type="button" onClick={() => navigate("/investing")} style={{ width: "100%", opacity: 0.85 }}>
                 Back to Goal Planner
               </button>
             </div>
