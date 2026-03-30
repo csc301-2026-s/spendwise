@@ -538,7 +538,7 @@ This structure ensures accountability through Jira tracking, improves collaborat
   ```bash
   docker compose up --build
 
-### Deployment (D4 improvements)
+### (D4 improvements)
 - Implemented automated deployment pipelines using GitHub Actions to streamline CI/CD, ensuring faster and more reliable releases.
 - Configured NGINX to serve the React frontend.
 - Configured workflows to build, test, and deploy applications automatically upon code changes, reducing manual intervention and minimizing deployment errors.
