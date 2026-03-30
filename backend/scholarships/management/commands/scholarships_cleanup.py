@@ -1,13 +1,41 @@
+from datetime import date
 from django.core.management.base import BaseCommand
 from django.db.models import Count
-
 from scholarships.models import Scholarship, StudentLevel
 
 
+def current_academic_year_start() -> date:
+    """Returns Sept 1 of the current academic year (e.g. Sept 1 2025 for 2025-2026)."""
+    today = date.today()
+    year = today.year if today.month >= 9 else today.year - 1
+    return date(year, 9, 1)
+
+
 class Command(BaseCommand):
-    help = "Report counts of scholarships by student level and active flag (diagnostic)."
+    help = "Report counts of scholarships by student level. Use --prune-stale to delete expired ones."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--prune-stale",
+            action="store_true",
+            help="Delete scholarships with deadlines before the current academic year start.",
+        )
 
     def handle(self, *args, **options):
+        if options["prune_stale"]:
+            cutoff = current_academic_year_start()
+            stale = Scholarship.objects.filter(
+                deadline__isnull=False,
+                deadline__lt=cutoff,
+            )
+            count = stale.count()
+            stale.delete()
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Pruned {count} stale scholarships (deadline before {cutoff})."
+                )
+            )
+
         self.stdout.write("Scholarship catalog snapshot")
         for sl in StudentLevel:
             n = Scholarship.objects.filter(student_level=sl.value).count()
