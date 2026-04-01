@@ -5,6 +5,8 @@ const ACCESS_TOKEN_KEY = "userAccessToken";
 const REFRESH_TOKEN_KEY = "userRefreshToken";
 const ONBOARDING_KEY = "onboardingComplete";
 const PROFILE_KEY = "userProfile";
+const GOAL_DRAFT_KEY = "goalDraft";
+const PORTFOLIO_DRAFT_KEY = "portfolioDraft";
 
 const DEFAULT_PROFILE = {
   faculty: "",
@@ -52,6 +54,9 @@ export function clearSession() {
   sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   sessionStorage.removeItem(ONBOARDING_KEY);
+  sessionStorage.removeItem(GOAL_DRAFT_KEY);
+  sessionStorage.removeItem(PORTFOLIO_DRAFT_KEY);
+  localStorage.removeItem(PROFILE_KEY);
 }
 
 export function authHeaders(token = getToken()) {
@@ -142,6 +147,10 @@ export function hydrateProfile(profile = {}) {
 }
 
 export async function hydrateSessionFromTokens({ access, refresh } = {}) {
+  // Prevent drafts from leaking across accounts in the same browser.
+  sessionStorage.removeItem(GOAL_DRAFT_KEY);
+  sessionStorage.removeItem(PORTFOLIO_DRAFT_KEY);
+
   setTokens({ access, refresh });
   setOnboardingComplete(false);
 

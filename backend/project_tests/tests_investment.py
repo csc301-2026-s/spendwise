@@ -1,5 +1,6 @@
 from unittest.mock import patch
 import pandas as pd
+from decimal import Decimal
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
@@ -8,6 +9,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from investments.models import InvestmentGoal
+from investments.models import PracticePortfolio
 
 User = get_user_model()
 
@@ -216,6 +218,31 @@ class InvestmentGoalTests(TestCase):
     def test_asset_performance_no_symbols(self):
         res = self.client.get("/api/investments/assets/performance/")
         self.assertIn(res.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_501_NOT_IMPLEMENTED])
+
+    def test_projection_empty_when_no_goal(self):
+        res = self.client.get("/api/investments/projection/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, {})
+
+    def test_projection_uses_latest_goal_and_portfolio(self):
+        goal = self._make_goal()
+        portfolio = PracticePortfolio.objects.create(
+            user=self.user,
+            goal=goal,
+            portfolio_name="Projection Portfolio",
+            portfolio_type="custom",
+            expected_annual_return=Decimal("7.50"),
+        )
+
+        res = self.client.get("/api/investments/projection/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["goal_id"], goal.id)
+        self.assertEqual(res.data["portfolio_id"], portfolio.id)
+        self.assertTrue(isinstance(res.data["months_left"], int))
+        self.assertGreater(res.data["months_left"], 0)
+        self.assertGreaterEqual(res.data["savings_only_value"], res.data["initial_amount"])
+        self.assertGreater(res.data["investing_value"], res.data["savings_only_value"])
+        self.assertEqual(round(float(res.data["expected_annual_return"]), 2), 7.50)
 
 
 class InvestmentModelTests(TestCase):
