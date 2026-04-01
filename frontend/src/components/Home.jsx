@@ -297,11 +297,14 @@ export default function Dashboard() {
   const [statusMessage, setStatusMessage] = useState("");
   const [statusError, setStatusError] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [scholarMoney, setScholarMoney] = useState(0);
+  const [scholarRemainingDeficit, setScholarRemainingDeficit] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalSavings, setTotalSavings] = useState(0);
   const [financialProfile, setFinancialProfile] = useState({});
   const [scholarshipStats, setScholarshipStats] = useState(null);
   const [deltaPct, setDeltaPct] = useState(0);
+  const [investProjection, setInvestProjection] = useState(null);
   const [monthlyDetail, setMonthlyDetail] = useState({
     transactions: 0,
     expenseTx: 0,
@@ -378,14 +381,55 @@ export default function Dashboard() {
   }, [reloadKey]);
 
   useEffect(() => {
-    fetchWithAuth(`${API_BASE_URL}/me/`).then((res) => {
-      if (res.ok) res.json().then((data) => setFirstName(data?.first_name || ""));
-    });
+    async function loadScholarMoney() {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/scholarships/saved/deficit-impact/`);
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        const potential = Number(data?.potential_amount ?? 0);
+        const remaining = Number(data?.remaining_deficit_after_potential ?? 0);
+        if (Number.isFinite(potential)) setScholarMoney(potential);
+        if (Number.isFinite(remaining)) setScholarRemainingDeficit(remaining);
+      } catch {
+        // ignore
+      }
+    }
+    loadScholarMoney();
+  }, []);
+
+  useEffect(() => {
+    async function loadInvestProjection() {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/investments/projection/`);
+        if (!res.ok) { setInvestProjection(null); return; }
+        const data = await res.json().catch(() => ({}));
+        setInvestProjection(data && typeof data === "object" ? data : null);
+      } catch {
+        setInvestProjection(null);
+      }
+    }
+    loadInvestProjection();
+
+    const onFocus = () => loadInvestProjection();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") loadInvestProjection();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   useEffect(() => {
     fetchProfile()
-      .then((profile) => setFinancialProfile(profile))
+      .then((profile) => {
+        setFinancialProfile(profile);
+        setFirstName(profile?.first_name || "");
+      })
       .catch(() => setFinancialProfile({}));
   }, []);
 
@@ -700,11 +744,15 @@ export default function Dashboard() {
               <InsightCard
                 title={financialSnapshot.deficit > 0 ? "Funding Gap" : "Monthly Cushion"}
                 message={
-                  financialSnapshot.deficit > 0
-                    ? `Your current profile shows a monthly deficit of $${fmtMoney(financialSnapshot.deficit)}. Scholarships and investing views now estimate how much of that gap they can cover.`
-                    : `Your current profile shows a monthly surplus of $${fmtMoney(financialSnapshot.surplus)}. You could still save about $${fmtMoney(totalSavings)} this month by reducing repeated spending patterns.`
-                }
-              />
+	                  financialSnapshot.deficit > 0
+		                    ? `Your current profile shows a deficit of $${fmtMoney(financialSnapshot.deficit)}. Based on saved scholarships, you could potentially cover about $${fmtMoney(scholarMoney)}, leaving about $${fmtMoney(scholarRemainingDeficit)}. ${
+                        investProjection?.investing_value
+                          ? `By ${investProjection.target_date}, savings-only projects about $${fmtMoney(investProjection.savings_only_value)} and your portfolio projects about $${fmtMoney(investProjection.investing_value)} (${Number(investProjection.expected_annual_return || 0).toFixed(2)}% expected).`
+                          : "Save a goal + portfolio in Goal Planner to see an investing projection here."
+                      }`
+	                    : `Your current profile shows a monthly surplus of $${fmtMoney(financialSnapshot.surplus)}. You could still save about $${fmtMoney(totalSavings)} this month by reducing repeated spending patterns.`
+	                }
+	              />
             </div>
 
             <div className="card">

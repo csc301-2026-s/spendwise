@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     InvestmentGoalViewSet, PracticePortfolioViewSet, MLRecommendationsViewSet,
     AssetPerformanceAPIView, AssetSearchAPIView,
-    AssetDetailAPIView, AssetChartAPIView, RecommendationsAPIView,
+    AssetDetailAPIView, AssetChartAPIView, RecommendationsAPIView, ProjectionAPIView,
 )
 
 app_name = "investments"
@@ -15,6 +15,7 @@ router.register(r"ml", MLRecommendationsViewSet, basename="ml")
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("projection/",         ProjectionAPIView.as_view(),      name="projection"),
     path("assets/performance/", AssetPerformanceAPIView.as_view(), name="asset-performance"),
     path("assets/search/",      AssetSearchAPIView.as_view(),      name="asset-search"),
     path("assets/detail/",      AssetDetailAPIView.as_view(),      name="asset-detail"),

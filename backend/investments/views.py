@@ -1,6 +1,7 @@
 from decimal import Decimal
 import statistics
 import requests
+from datetime import date
 from django.conf import settings
 from django.core.cache import cache
 from rest_framework import viewsets, serializers
@@ -505,3 +506,74 @@ class RecommendationsAPIView(APIView):
         data = RECOMMENDATION_PRESETS[risk_level]
         cache.set(cache_key, data, RECS_CACHE_TTL)
         return Response(data, status=200)
+
+
+class ProjectionAPIView(APIView):
+    """
+    Returns a simple projection using the user's latest goal + portfolio.
+
+    The projection is computed from saved DB data (goal + portfolio); it is not persisted.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Prefer the user's latest goal. Then (optionally) use the latest portfolio tied to that goal.
+        goal = (
+            InvestmentGoal.objects.filter(user=request.user)
+            .order_by("-created_at")
+            .first()
+        )
+        portfolio = None
+        if goal:
+            portfolio = (
+                PracticePortfolio.objects.filter(user=request.user, goal=goal)
+                .order_by("-created_at")
+                .first()
+            )
+
+        if not goal:
+            return Response({}, status=200)
+
+        today = date.today()
+        target = goal.target_date
+
+        months_left = (target.year - today.year) * 12 + (target.month - today.month)
+        if target.day > today.day:
+            months_left += 1
+        months_left = max(0, months_left)
+
+        initial = Decimal(str(goal.initial_amount or 0))
+        monthly = Decimal(str(goal.monthly_contribution or 0))
+        savings_only_value = initial + (monthly * Decimal(months_left))
+
+        expected_annual_return = Decimal("0")
+        if portfolio and portfolio.expected_annual_return is not None:
+            expected_annual_return = Decimal(str(portfolio.expected_annual_return or 0))
+
+        monthly_rate = (expected_annual_return / Decimal("100")) / Decimal("12") if expected_annual_return else Decimal("0")
+        if months_left <= 0:
+            investing_value = initial
+        elif monthly_rate == 0:
+            investing_value = savings_only_value
+        else:
+            growth = (Decimal("1") + monthly_rate) ** Decimal(months_left)
+            investing_value = (initial * growth) + (monthly * ((growth - Decimal("1")) / monthly_rate))
+
+        def _money(val: Decimal):
+            return float(val.quantize(Decimal("0.01")))
+
+        return Response(
+            {
+                "goal_id": goal.id,
+                "portfolio_id": portfolio.id if portfolio else None,
+                "target_date": target.isoformat(),
+                "months_left": months_left,
+                "initial_amount": _money(initial),
+                "monthly_contribution": _money(monthly),
+                "expected_annual_return": float(expected_annual_return.quantize(Decimal("0.01"))),
+                "savings_only_value": _money(Decimal(savings_only_value)),
+                "investing_value": _money(Decimal(investing_value)),
+            },
+            status=200,
+        )

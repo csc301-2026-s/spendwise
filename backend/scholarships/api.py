@@ -15,6 +15,7 @@ from .serializers import (
     ScholarshipDetailSerializer,
     ScholarshipListSerializer,
 )
+from .services import compute_saved_scholarship_deficit_impact
 
 NATURE_FIELD_MAP = {
     "academic_merit": "nature_academic_merit",
@@ -392,6 +393,35 @@ class SavedScholarshipStatsAPI(APIView):
                 "acceptance_rate": acceptance_rate,
             }
         )
+
+
+class SavedScholarshipDeficitImpactAPI(APIView):
+    """
+    GET /api/scholarships/saved/deficit-impact/
+
+    Returns:
+      deficit, saved_count, total_nominal_amount, assumed_award_probability,
+      potential_amount, remaining_deficit_after_potential, notes, disclaimer.
+
+    Optional query:
+      ?probability=0.8  (must be in (0, 1]; otherwise uses SCHOLARSHIP_ASSUMED_WIN_PROBABILITY)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        raw = request.query_params.get("probability")
+        probability_override = None
+        if raw is not None and str(raw).strip() != "":
+            try:
+                p = float(raw)
+            except ValueError:
+                p = None
+            if p is not None and 0 < p <= 1:
+                probability_override = p
+
+        data = compute_saved_scholarship_deficit_impact(request.user, probability_override=probability_override)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class SaveUnsaveScholarshipAPI(APIView):

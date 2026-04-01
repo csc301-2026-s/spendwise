@@ -18,6 +18,7 @@ from scholarships.ingest_utils import (
     parse_undergrad_cells,
 )
 from scholarships.models import AwardType, SavedScholarship, Scholarship, StudentLevel
+from accounts.models import UserProfile
 
 User = get_user_model()
 
@@ -147,6 +148,34 @@ class ScholarshipsAPITests(APITestCase):
         self.assertEqual(res.data["awarded"], 1)
         self.assertEqual(res.data["not_awarded"], 0)
         self.assertEqual(res.data["acceptance_rate"], 1.0)
+
+    def test_deficit_impact_returns_expected_contract(self):
+        user = User.objects.create_user(username="t2@mail.utoronto.ca", email="t2@mail.utoronto.ca", password="x")
+        self.client.force_authenticate(user=user)
+        UserProfile.objects.create(user=user, total_earnings=1000, total_expenses=2000)
+        cs = Scholarship.objects.get(title="CS Scholarship")
+        SavedScholarship.objects.create(user=user, scholarship=cs, status="saved")
+
+        res = self.client.get("/api/scholarships/saved/deficit-impact/")
+        self.assertEqual(res.status_code, 200)
+        for k in (
+            "deficit",
+            "saved_count",
+            "total_nominal_amount",
+            "assumed_award_probability",
+            "potential_amount",
+            "remaining_deficit_after_potential",
+            "notes",
+            "disclaimer",
+        ):
+            self.assertIn(k, res.data)
+
+    def test_deficit_impact_probability_validation(self):
+        user = User.objects.create_user(username="t3@mail.utoronto.ca", email="t3@mail.utoronto.ca", password="x")
+        self.client.force_authenticate(user=user)
+        res = self.client.get("/api/scholarships/saved/deficit-impact/?probability=1.5")
+        self.assertEqual(res.status_code, 200)
+        self.assertAlmostEqual(res.data["assumed_award_probability"], 0.8, places=3)
 
 
 class ScholarshipsApiHelperUnitTests(TestCase):

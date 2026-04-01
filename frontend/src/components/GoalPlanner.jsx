@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import Navbar from "./Navbar";
 import InstructionsModal from "./InstructionsModal";
-import { fetchProfile } from "../utils/session";
+import { fetchWithAuth, fetchProfile } from "../utils/session";
 import {
   buildFinancialSnapshot, coverageAmount, coveragePercent,
 } from "../utils/financialSnapshot";
@@ -115,9 +115,32 @@ function readPortfolioDraft() {
   } catch { return null; }
 }
 
+function readGoalDraft() {
+  try {
+    const raw = sessionStorage.getItem("goalDraft");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const targetDate = typeof parsed.targetDate === "string" ? parsed.targetDate : "";
+
+    return {
+      goalName: typeof parsed.goalName === "string" ? parsed.goalName : "",
+      goalType: typeof parsed.goalType === "string" ? parsed.goalType : "",
+      targetAmount: Number(parsed.targetAmount ?? 0) || 0,
+      targetDate,
+      monthlyContribution: Number(parsed.monthlyContribution ?? NaN),
+      initialAmount: Number(parsed.initialAmount ?? NaN),
+      riskLevel: typeof parsed.riskLevel === "string" ? parsed.riskLevel : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
 function defaultTargetDate() {
   const d = new Date();
-  d.setMonth(d.getMonth() + 18);
+  d.setMonth(d.getMonth() + 12);
   return d.toISOString().split("T")[0];
 }
 
@@ -138,14 +161,20 @@ function getEmoji(symbol) {
 export default function GoalPlanner() {
   const navigate = useNavigate();
 
+  const goalDraft = readGoalDraft();
+
   const [showInstructions, setShowInstructions] = useState(false);
-  const [monthlyContribution, setMonthlyContribution] = useState(0);
-  const [initialAmount, setInitialAmount] = useState(500);
-  const [goalName, setGoalName] = useState("New Laptop Fund");
-  const [goalType, setGoalType] = useState("laptop");
-  const [targetAmount, setTargetAmount] = useState(2000);
-  const [targetDate, setTargetDate] = useState(defaultTargetDate());
-  const [riskLevel, setRiskLevel] = useState("balanced");
+  const [monthlyContribution, setMonthlyContribution] = useState(
+    Number.isFinite(goalDraft?.monthlyContribution) ? goalDraft.monthlyContribution : 0
+  );
+  const [initialAmount, setInitialAmount] = useState(
+    Number.isFinite(goalDraft?.initialAmount) ? goalDraft.initialAmount : 500
+  );
+  const [goalName, setGoalName] = useState(goalDraft?.goalName || "New Laptop Fund");
+  const [goalType, setGoalType] = useState(goalDraft?.goalType || "laptop");
+  const [targetAmount, setTargetAmount] = useState(Number(goalDraft?.targetAmount || 0));
+  const [targetDate, setTargetDate] = useState(goalDraft?.targetDate || defaultTargetDate());
+  const [riskLevel, setRiskLevel] = useState(goalDraft?.riskLevel || "balanced");
 
   const [loadingSavings, setLoadingSavings] = useState(true);
   const [savingsError, setSavingsError] = useState("");
@@ -156,16 +185,49 @@ export default function GoalPlanner() {
   const [portfolioDraft, setPortfolioDraft] = useState(readPortfolioDraft());
 
   useEffect(() => {
+    async function loadTargetAmountSuggestion() {
+      try {
+        if (Number(targetAmount) > 0) return;
+        const res = await fetchWithAuth(`${API_BASE}/scholarships/saved/deficit-impact/`);
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        const remaining = Number(data?.remaining_deficit_after_potential ?? 0);
+        if (Number.isFinite(remaining) && remaining > 0) setTargetAmount(remaining);
+      } catch {
+        // ignore
+      }
+    }
+    loadTargetAmountSuggestion();
+    // only run on mount; we gate by checking current targetAmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     async function loadSavings() {
       try {
         setLoadingSavings(true);
         setSavingsError("");
-        const res = await fetch(`${API_BASE}/spending/monthly_saving_amount/`, {
+        // If we're returning from the Portfolio Builder, keep the user's draft values.
+        if (goalDraft && Number.isFinite(goalDraft.monthlyContribution)) {
+          setLoadingSavings(false);
+          return;
+        }
+        // Prefill from last full month so the estimate doesn't drop to 0 at month boundaries.
+        // Use monthly_saving_amount so we only count tips the user approved as recurring ("Yes").
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+
+        const res = await fetchWithAuth(
+          `${API_BASE}/spending/monthly_saving_amount/?month=${month}&year=${year}`,
+          {
           headers: getAuthHeaders(),
-        });
+          }
+        );
         if (!res.ok) throw new Error("Could not load savings baseline.");
-        const data = await res.json();
-        setMonthlyContribution(Number(data.total_saving || 0));
+        const data = await res.json().catch(() => ({}));
+        setMonthlyContribution(Number(data?.total_saving || 0));
       } catch {
         setSavingsError("Could not load your savings estimate.");
         setMonthlyContribution(0);
@@ -292,9 +354,12 @@ export default function GoalPlanner() {
       if (Math.abs(allocationTotal - 100) > 0.01)
         throw new Error(`Portfolio allocations must total 100% (currently ${allocationTotal.toFixed(1)}%).`);
 
-      const goalRes = await fetch(`${API_BASE}/investments/goals/`, {
+      const goalRes = await fetchWithAuth(`${API_BASE}/investments/goals/`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           goal_name: goalName.trim(),
           goal_type: goalType,
@@ -313,9 +378,12 @@ export default function GoalPlanner() {
 
       const createdGoal = await goalRes.json();
 
-      const portfolioRes = await fetch(`${API_BASE}/investments/portfolios/`, {
+      const portfolioRes = await fetchWithAuth(`${API_BASE}/investments/portfolios/`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           goal: createdGoal.id,
           portfolio_name: selectedPortfolio.name || "My Portfolio",
