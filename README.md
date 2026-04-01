@@ -37,7 +37,7 @@ https://spendwise.info/
 
 ## Accessing the Application
 
-**Live deployment:** http://134.122.6.117:5174/
+**Live deployment:** https://spendwise.info/
 
 **Demo login credentials:**
 - Email: `alihassan.shaikh@mail.utoronto.ca`
