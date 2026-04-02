@@ -224,6 +224,7 @@ If you need to override a value (e.g., a real Plaid key), create `backend/.env`:
 ```env
 PLAID_CLIENT_ID=your-client-id
 PLAID_SECRET=your-secret
+PLAID_ENV=sandbox
 ```
 
 See [HANDOVER.md § Environment Configuration](./HANDOVER.md#4-environment-configuration) for the full list of variables.

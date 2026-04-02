@@ -106,7 +106,7 @@ spendwise/
 | Reverse proxy | Nginx | alpine |
 | SSL | Let's Encrypt / Certbot | — |
 | CI/CD | GitHub Actions | — |
-| Bank data | Plaid API | sandbox |
+| Bank data | Plaid API | configurable (`sandbox` / `development` / `production`) |
 | Stock data | yfinance + Alpha Vantage | — |
 | ML | scikit-learn, pandas, numpy | 1.5.1 / 2.2.2 / 1.26.4 |
 
@@ -126,9 +126,10 @@ POSTGRES_PASSWORD=app
 POSTGRES_HOST=db          # use "db" inside Docker, "localhost" for bare-metal
 POSTGRES_PORT=5432
 
-# Plaid (bank integration) — sandbox credentials
+# Plaid (bank integration)
 PLAID_CLIENT_ID=<your-plaid-client-id>
 PLAID_SECRET=<your-plaid-secret>
+PLAID_ENV=sandbox
 
 # Email backend (use console for local, SMTP for production)
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
@@ -591,7 +592,7 @@ Valid values: `saved`, `in_progress`, `submitted`.
 
 ### 7.3 Bank Transactions / Plaid (`/api/plaid/`)
 
-> The Plaid integration runs in **sandbox mode**. Use Plaid's test credentials during local development. Moving to production requires a Plaid Development or Production key.
+> Plaid environment is controlled by `PLAID_ENV` (`sandbox`, `development`, or `production`).
 
 #### Create Plaid Link Token
 
@@ -604,7 +605,7 @@ Generates a short-lived token used to initialise the Plaid Link widget in the fr
 **Response `200`:**
 ```json
 {
-  "link_token": "link-sandbox-..."
+  "link_token": "link-..."
 }
 ```
 
@@ -621,7 +622,7 @@ Called after the user completes Plaid Link. Exchanges the one-time public token 
 **Request body:**
 ```json
 {
-  "public_token": "public-sandbox-..."
+  "public_token": "public-..."
 }
 ```
 
@@ -1018,11 +1019,12 @@ Certbot certificates expire every 90 days. Set up a cron job to auto-renew:
 
 - **Dashboard:** https://dashboard.plaid.com
 - **Documentation:** https://plaid.com/docs/
-- **Environment:** Currently `sandbox`. To move to production:
-  1. Apply for Plaid Development access
-  2. Update `PLAID_CLIENT_ID` and `PLAID_SECRET` in the environment
-  3. Change `PLAID_ENV=development` in the Django settings
-  4. Test with real bank credentials
+- **Environment:** Controlled by `PLAID_ENV` in backend env.
+- To move to production:
+  1. Confirm your Plaid account has access to the target environment
+  2. Set `PLAID_CLIENT_ID` and `PLAID_SECRET` for that environment
+  3. Set `PLAID_ENV=production`
+  4. Test Link and transaction sync end-to-end in deployed environment
 
 **Sandbox test credentials:**
 - Username: `user_good`

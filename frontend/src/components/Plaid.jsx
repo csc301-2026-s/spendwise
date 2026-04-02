@@ -246,9 +246,6 @@ export default function Plaid() {
             <p className="tx-empty-sub">
               Connect your credit card using the button above to start viewing your transaction history.
             </p>
-            <div className="tx-empty-hint">
-              Sandbox credentials: <code>user_transactions</code> / <code>pass_good</code>
-            </div>
           </div>
         )}
 
@@ -757,12 +754,6 @@ const CSS = `
   color: #002A5C; margin-bottom: 0.6rem;
 }
 .tx-empty-sub { font-size: 0.9rem; color: #6B7A90; line-height: 1.6; max-width: 320px; margin: 0 auto; }
-.tx-empty-hint {
-  margin-top: 1.25rem; background: #F4F7FB;
-  border: 1px solid #D0DBE8; border-radius: 8px;
-  padding: 0.65rem 1rem; font-size: 0.8rem; color: #6B7A90; display: inline-block;
-}
-.tx-empty-hint code { background: #E8EEF6; padding: 1px 6px; border-radius: 4px; font-size: 0.78rem; color: #002A5C; }
 .tx-list-empty {
   display: flex; flex-direction: column;
   align-items: center; gap: 0.75rem;

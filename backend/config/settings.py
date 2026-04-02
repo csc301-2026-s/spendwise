@@ -149,6 +149,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 PLAID_CLIENT_ID = os.environ.get('PLAID_CLIENT_ID', '')
 PLAID_SECRET = os.environ.get('PLAID_SECRET', '')
+PLAID_ENV = os.environ.get('PLAID_ENV', 'sandbox').strip().lower()
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))

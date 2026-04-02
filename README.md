@@ -93,15 +93,15 @@ The dashboard is your financial home base. It shows:
 
 ### 3. Connecting a Bank Account
 
-SpendWise uses **Plaid** to securely connect your bank account. The current implementation uses Plaid's **sandbox environment** (test accounts only — no real banking credentials are used or stored).
+SpendWise uses **Plaid** to securely connect your bank account. The runtime Plaid environment is configured via backend environment variables (`PLAID_ENV` set to `sandbox`, `development`, or `production`).
 
 To connect:
 1. Click **Connect Bank Account** on the dashboard.
-2. A Plaid window will appear. Select a test bank.
-3. Use username `user_good` / password `pass_good`.
+2. A Plaid window will appear.
+3. In sandbox mode, use Plaid test credentials (for example `user_good` / `pass_good`).
 4. Once connected, your transactions will appear in the Spending page.
 
-> Note: Plaid sandbox provides transactions for **February 2026**. Select "Last Month" in the Spending page to view them.
+> Note: In sandbox mode, Plaid returns fixed test data ranges.
 
 ---
 
