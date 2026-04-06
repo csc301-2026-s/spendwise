@@ -213,4 +213,4 @@ The full technical architecture, API reference, and developer setup are document
 
 ## License
 
-The repository is private during development. Upon public release, the project will be licensed under the **MIT License**.
+This repo is registered under MIT Licensed- UofT SpendWise 2026
