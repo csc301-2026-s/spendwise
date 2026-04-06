@@ -102,7 +102,7 @@ docker compose exec backend python manage.py ingest_awardexplorer --level grad
 docker compose exec backend python manage.py sync_student_codes
 ```
 
-These commands are idempotent — safe to re-run at any time.
+These commands are important — safe to re-run at any time.
 
 ---
 
